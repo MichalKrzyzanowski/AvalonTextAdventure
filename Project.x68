@@ -16,26 +16,27 @@
 *------------------------------------------------
 
 
-exit        EQU 0      used to exit assembly program
-min_feed    EQU 100    min feed requirement
-min_potions EQU 1      min number of potions
-max_potions EQU 9      max number of potions
-min_weapons EQU 6      min weapons
-win_point   EQU 5      points accumilated on win
-lose_point  EQU 8      points deducted on a loss
+exit                EQU 0      used to exit assembly program
+min_feed            EQU 100    min feed requirement
+min_potions         EQU 1      min number of potions
+max_potions         EQU 9      max number of potions
+min_weapons         EQU 6      min weapons
+win_point           EQU 5      points accumilated on win
+lose_point          EQU 8      points deducted on a loss
+combat_encounter    EQU 2      location of treasure
 
 mine_loc    EQU 100    example for a hit
 
 
 *Start of Game
 start:
-    move.b  #100, $4000 put health in memory location $4000
+    move.b  #100, health put health in memory location
     lea     $4000, A3   assign address A3 to that memory location
     
-    move.b  #10, $4010 put player stamina in memory location $4010
-    lea     $4010, A4  assign address A4 to memory location $4010
+    move.b  #10, stamina put player stamina in memory location
+    lea     $4010, A4  assign address A4 to memory location
 
-    move.b  #0, $4020  steps taken value stored in memory location $4020
+    move.b  #0, steps steps taken value stored in memory location
 
 
     bsr     welcome    branch to the welcome subroutine
@@ -208,6 +209,7 @@ gameplay:
     
     cmp     #1, D1
     beq     explore_start
+    bsr     clear_screen
     bne     gameplay
     
     bsr     collision
@@ -225,7 +227,45 @@ explore:
     trap    #15
     
     bsr     input
+    cmp     #1, D1
+    beq     movement
+    
 
+
+*-------------------------------------------------------
+*---Game Play (Exploration)-----------------------------
+*-------------------------------------------------------
+
+movement:
+    bsr     clear_screen
+    add.b   #1, steps
+    sub.b   #1, stamina
+    lea     move_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     display_stats
+    
+    ;cmp     
+    
+    bsr     pause
+    bsr     clear_screen
+    
+    bsr     explore
+    
+
+*-------------------------------------------------------
+*---Game Play (Exploration)-----------------------------
+*-------------------------------------------------------
+
+
+display_stats:
+    move.b      health, D1
+    move.b      #6, D0
+    trap        #15 
+    rts  
+    
 
 
 *-------------------------------------------------------
@@ -324,7 +364,9 @@ explore_start:
     lea     explore_start_msg, A1
     move.b  #14, D0
     trap    #15
+    bsr     endl
     bsr     pause
+    bsr     clear_screen
     bsr     explore
     
     
@@ -385,8 +427,11 @@ chapterOne:     dc.b    'you are standing in the village square.'
                       dc.b    '1. Explore land'
                       dc.b    $0D,$0A,0
 explore_start_msg     dc.b    'You leave the village to explore the lands!',0
-travel_msg            dc.b    '1.Travel(1 step, -1 STM)'
+travel_msg            dc.b    '1.Travel(1 step, -1 stamina)'
                       dc.b    $0D,$0A,0
+move_msg:             dc.b    'you walk for 1 minute!'
+                      dc.b    $0D,$0A
+                      dc.b    'stamina decreased by 1!',0
 update_msg:           dc.b    'Update Gameplay !',0
 draw_msg:             dc.b    'Draw Screen !',0
 hit_msg:        dc.b    'Strike!',0
@@ -396,10 +441,15 @@ replay_msg:     dc.b    'Enter 0 to Quit any other number to replay : ',0
 hud_msg:        dc.b    'Score : ',0
 pause_msg       dc.b    'Press Enter to continue...',0
 
+
+; reserve space for certain values
 health:     ds.w    1
-score:      ds.w    1 reserve space for score
+stamina:      ds.w    2 
+steps:      ds.w    3
 
     end start
+
+
 
 
 
