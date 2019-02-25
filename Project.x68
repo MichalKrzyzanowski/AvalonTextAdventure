@@ -85,8 +85,8 @@ input:
     move.b  #4, D0
     trap    #15
     rts
+   
     
-
 *-------------------------------------------------------
 *----------------Gameloop (main loop)-------------------
 *------------------------------------------------------- 
@@ -222,14 +222,21 @@ gameplay:
 
 
 explore:
+    bsr     clear_screen
     lea     travel_msg, A1
     move.b  #14, D0
     trap    #15
     
     bsr     input
+    
     cmp     #1, D1
     beq     movement
     
+    cmp     #2, D1
+    beq     display_stats
+    
+    bsr     clear_screen
+    bne     explore
 
 
 *-------------------------------------------------------
@@ -237,6 +244,7 @@ explore:
 *-------------------------------------------------------
 
 movement:
+    ;clr     D1
     bsr     clear_screen
     add.b   #1, steps
     sub.b   #1, stamina
@@ -245,14 +253,19 @@ movement:
     trap    #15
     bsr     endl
     bsr     endl
-    bsr     display_stats
     
-    ;cmp     
+   
     
     bsr     pause
     bsr     clear_screen
     
-    bsr     explore
+    
+    move.b  steps, D1
+    cmp     #2, D1
+    
+    beq     display_stats
+    bne     explore
+   
     
 
 *-------------------------------------------------------
@@ -261,10 +274,46 @@ movement:
 
 
 display_stats:
+    ; display health message and player's current health
+    bsr         clear_screen
+    lea         health_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
     move.b      health, D1
-    move.b      #6, D0
-    trap        #15 
-    rts  
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+
+    ; display stamina message and player's current stamina
+    lea         stamina_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      stamina, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    ; display steps message and steps taken by player
+    lea         steps_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      steps, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    bsr         pause
+    bsr         clear_screen
+    bsr         explore 
     
 
 
@@ -403,51 +452,57 @@ endl:
 
 
 
-crlf:           dc.b    $0D,$0A,0
-welcome_msg:    dc.b    '************************************************************'
-                dc.b    $0D,$0A
-                dc.b    'Avalon: The Legend Lives'
-                dc.b    $0D,$0A
-                dc.b    '************************************************************'
-                dc.b    $0D,$0A,0   
-potion_msg:     dc.b    'Feed load (each horse needs at least 100 units of feed)'
-                dc.b    $0D,$0A
-                dc.b    'Enter feed load : ',0
-potions_msg:    dc.b    'Number of potions : ',0
-weapons_msg:    dc.b    'Each quest need at least 2 Weapons'
-                dc.b    $0D,$0A
-                dc.b    'minimum requirement is 2 i.e. Sword x 1 and Speer x 1.'
-                dc.b    $0D,$0A
-                dc.b    'Enter # of weapons : ',0
-gameplay_msg:   dc.b    'Village',0
-chapterOne:     dc.b    'you are standing in the village square.'
-                dc.b    $0D,$0A
-                dc.b    'What do you do?'
-                dc.b    $0D,$0A
+crlf:                 dc.b    $0D,$0A,0
+welcome_msg:          dc.b    '************************************************************'
+                      dc.b    $0D,$0A
+                      dc.b    'Avalon: The Legend Lives'
+                      dc.b    $0D,$0A
+                      dc.b    '************************************************************'
+                      dc.b    $0D,$0A,0   
+potion_msg:           dc.b    'Feed load (each horse needs at least 100 units of feed)'
+                      dc.b    $0D,$0A
+                      dc.b    'Enter feed load : ',0
+potions_msg:          dc.b    'Number of potions : ',0
+weapons_msg:          dc.b    'Each quest need at least 2 Weapons'
+                      dc.b    $0D,$0A
+                      dc.b    'minimum requirement is 2 i.e. Sword x 1 and Speer x 1.'
+                      dc.b    $0D,$0A
+                      dc.b    'Enter # of weapons : ',0
+gameplay_msg:         dc.b    'Village',0
+chapterOne:           dc.b    'you are standing in the village square.'
+                      dc.b    $0D,$0A
+                      dc.b    'What do you do?'
+                      dc.b    $0D,$0A
                       dc.b    '1. Explore land'
                       dc.b    $0D,$0A,0
-explore_start_msg     dc.b    'You leave the village to explore the lands!',0
-travel_msg            dc.b    '1.Travel(1 step, -1 stamina)'
+explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
+travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
+                      dc.b    $0D,$0A
+                      dc.b    '2. View player stats'
                       dc.b    $0D,$0A,0
 move_msg:             dc.b    'you walk for 1 minute!'
                       dc.b    $0D,$0A
                       dc.b    'stamina decreased by 1!',0
 update_msg:           dc.b    'Update Gameplay !',0
 draw_msg:             dc.b    'Draw Screen !',0
-hit_msg:        dc.b    'Strike!',0
-miss_msg:       dc.b    'Miss!',0
-loop_msg:       dc.b    '.',0
-replay_msg:     dc.b    'Enter 0 to Quit any other number to replay : ',0
-hud_msg:        dc.b    'Score : ',0
-pause_msg       dc.b    'Press Enter to continue...',0
+hit_msg:              dc.b    'Strike!',0
+miss_msg:             dc.b    'Miss!',0
+loop_msg:             dc.b    '.',0
+replay_msg:           dc.b    'Enter 0 to Quit any other number to replay : ',0
+hud_msg:              dc.b    'Score : ',0
+pause_msg:            dc.b    'Press Enter to continue...',0
+health_msg:           dc.b    'Health: ',0
+stamina_msg:          dc.b    'Stamina: ',0
+steps_msg:            dc.b    'Steps Taken: ',0
 
 
 ; reserve space for certain values
-health:     ds.w    1
-stamina:      ds.w    2 
-steps:      ds.w    3
+health:     ds.b    1
+stamina:      ds.b    1 
+steps:      ds.b    1
 
     end start
+
 
 
 
