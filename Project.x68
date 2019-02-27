@@ -23,7 +23,8 @@ max_potions         EQU 9      max number of potions
 min_weapons         EQU 6      min weapons
 win_point           EQU 5      points accumilated on win
 lose_point          EQU 8      points deducted on a loss
-combat_encounter    EQU 2      location of treasure
+treasure            EQU 2      location of treasure
+
 
 mine_loc    EQU 100    example for a hit
 
@@ -31,12 +32,12 @@ mine_loc    EQU 100    example for a hit
 *Start of Game
 start:
     move.b  #100, health put health in memory location
-    lea     $4000, A3   assign address A3 to that memory location
     
     move.b  #10, stamina put player stamina in memory location
-    lea     $4010, A4  assign address A4 to memory location
 
-    move.b  #0, steps steps taken value stored in memory location
+    move.b  #0, steps  steps taken value stored in memory location
+    
+    move.b  #0, gold   player gold is stored in memory location
 
 
     bsr     welcome    branch to the welcome subroutine
@@ -244,7 +245,6 @@ explore:
 *-------------------------------------------------------
 
 movement:
-    ;clr     D1
     bsr     clear_screen
     add.b   #1, steps
     sub.b   #1, stamina
@@ -259,14 +259,31 @@ movement:
     bsr     pause
     bsr     clear_screen
     
-    
+    clr     D1
     move.b  steps, D1
-    cmp     #2, D1
+    cmp     #treasure, D1
     
-    beq     display_stats
+    beq     event_treasure
     bne     explore
    
     
+*-------------------------------------------------------
+*---Treasure Event (Exploration)------------------------
+*-------------------------------------------------------
+
+
+event_treasure:
+    bsr     clear_screen
+    lea     treasure_msg, A1
+    move.b  #14, D0
+    trap    #15
+    add.b   #10, gold
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     clear_screen
+    bsr     explore
+
 
 *-------------------------------------------------------
 *---Game Play (Exploration)-----------------------------
@@ -307,6 +324,23 @@ display_stats:
     clr         D1
     move.b      steps, D1
     move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    ; display gold message and player's current gold value
+    lea         gold_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      gold, D1
+    move.b      #3, D0
+    trap        #15
+    
+    clr         D1
+    move.b      #103, D1
+    move.b      #6, D0
     trap        #15
     bsr         endl
     bsr         endl
@@ -482,7 +516,7 @@ travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    $0D,$0A,0
 move_msg:             dc.b    'you walk for 1 minute!'
                       dc.b    $0D,$0A
-                      dc.b    'stamina decreased by 1!',0
+                      dc.b    '<== stamina decreased by 1! ==>',0
 update_msg:           dc.b    'Update Gameplay !',0
 draw_msg:             dc.b    'Draw Screen !',0
 hit_msg:              dc.b    'Strike!',0
@@ -494,14 +528,26 @@ pause_msg:            dc.b    'Press Enter to continue...',0
 health_msg:           dc.b    'Health: ',0
 stamina_msg:          dc.b    'Stamina: ',0
 steps_msg:            dc.b    'Steps Taken: ',0
+treasure_msg:         dc.b    'After walking for a while, you stumble upon a small satchet.'
+                      dc.b    $0D,$0A
+                      dc.b    'You search the satchet.'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== you found 10g ==>',0
+gold_msg:             dc.b    'Gold: ',0
 
 
 ; reserve space for certain values
 health:     ds.b    1
-stamina:      ds.b    1 
+stamina:    ds.b    1
 steps:      ds.b    1
+gold:       ds.b    1
 
     end start
+
+
+
+
 
 
 
