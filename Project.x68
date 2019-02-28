@@ -26,6 +26,9 @@ lose_point          EQU 8      points deducted on a loss
 treasure            EQU 2      location of treasure
 
 
+; weapons
+
+
 mine_loc    EQU 100    example for a hit
 
 
@@ -33,11 +36,13 @@ mine_loc    EQU 100    example for a hit
 start:
     move.b  #100, health put health in memory location
     
-    move.b  #10, stamina put player stamina in memory location
+    move.b  #0, stamina put player stamina in memory location
 
     move.b  #0, steps  steps taken value stored in memory location
     
     move.b  #0, gold   player gold is stored in memory location
+    
+    move.b  #3, damage player gold is stored in memory location
 
 
     bsr     welcome    branch to the welcome subroutine
@@ -230,11 +235,18 @@ explore:
     
     bsr     input
     
+    cmp     #2, D1
+    beq     camp
+    
+    cmp     #3, D1
+    beq     display_stats
+    
+    move.b  stamina, D2
+    cmp     #0, D2
+    beq     stamina_lack
+    
     cmp     #1, D1
     beq     movement
-    
-    cmp     #2, D1
-    beq     display_stats
     
     bsr     clear_screen
     bne     explore
@@ -243,6 +255,41 @@ explore:
 *-------------------------------------------------------
 *---Game Play (Exploration)-----------------------------
 *-------------------------------------------------------
+
+
+stamina_lack:
+    bsr     clear_screen
+    lea     stamina_lack_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    
+    bsr     pause
+    bsr     explore
+    
+
+*-------------------------------------------------------
+*---Game Play (Exploration)-----------------------------
+*-------------------------------------------------------
+
+
+camp:
+    bsr     clear_screen
+    lea     camp_msg, A1
+    move.b  #14, D0
+    trap    #15
+    move.b  #10, stamina
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     explore    
+
+
+*-------------------------------------------------------
+*---Game Play (Exploration)-----------------------------
+*-------------------------------------------------------
+
 
 movement:
     bsr     clear_screen
@@ -512,7 +559,12 @@ chapterOne:           dc.b    'you are standing in the village square.'
 explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
 travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    $0D,$0A
-                      dc.b    '2. View player stats'
+                      dc.b    $0D,$0A
+                      dc.b    '2. Setup camp(restore stamina)'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '3. View player stats'
+                      dc.b    $0D,$0A
                       dc.b    $0D,$0A,0
 move_msg:             dc.b    'you walk for 1 minute!'
                       dc.b    $0D,$0A
@@ -535,6 +587,11 @@ treasure_msg:         dc.b    'After walking for a while, you stumble upon a sma
                       dc.b    $0D,$0A
                       dc.b    '<== you found 10g ==>',0
 gold_msg:             dc.b    'Gold: ',0
+stamina_lack_msg      dc.b    'You are too tired to travel. rest up by setting up a camp!',0
+camp_msg:             dc.b    'You setup a campfire and go to sleep.'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== Stamina fully restored! ==>',0
 
 
 ; reserve space for certain values
@@ -542,8 +599,10 @@ health:     ds.b    1
 stamina:    ds.b    1
 steps:      ds.b    1
 gold:       ds.b    1
+damage:     ds.b    1
 
     end start
+
 
 
 
