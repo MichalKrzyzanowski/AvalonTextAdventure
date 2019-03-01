@@ -24,6 +24,7 @@ min_weapons         EQU 6      min weapons
 win_point           EQU 5      points accumilated on win
 lose_point          EQU 8      points deducted on a loss
 treasure            EQU 2      location of treasure
+thief_combat        EQU 4      location of thief encounter
 
 
 ; weapons
@@ -34,15 +35,24 @@ mine_loc    EQU 100    example for a hit
 
 *Start of Game
 start:
+
+    ; setup player stats
     move.b  #100, health put health in memory location
     
-    move.b  #0, stamina put player stamina in memory location
+    move.b  #10, stamina put player stamina in memory location
 
     move.b  #0, steps  steps taken value stored in memory location
     
     move.b  #0, gold   player gold is stored in memory location
     
     move.b  #3, damage player gold is stored in memory location
+    
+    move.b  #0, honour
+    
+    
+    ; setup thief stats
+    move.b  #10, thief_health
+    move.b  #1, thief_dmg
 
 
     bsr     welcome    branch to the welcome subroutine
@@ -301,8 +311,6 @@ movement:
     bsr     endl
     bsr     endl
     
-   
-    
     bsr     pause
     bsr     clear_screen
     
@@ -311,8 +319,12 @@ movement:
     cmp     #treasure, D1
     
     beq     event_treasure
+    
+    cmp     #thief_combat, D1
+    
+    beq     thief_encounter
     bne     explore
-   
+    
     
 *-------------------------------------------------------
 *---Treasure Event (Exploration)------------------------
@@ -330,6 +342,113 @@ event_treasure:
     bsr     pause
     bsr     clear_screen
     bsr     explore
+
+
+*-------------------------------------------------------
+*---Thief Encounter Event (Exploration)-----------------
+*-------------------------------------------------------
+
+
+thief_encounter:
+    bsr     clear_screen
+    lea     thief_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     clear_screen
+    bsr     combat
+
+
+*-------------------------------------------------------
+*---Combat (Exploration)-----------------------------
+*-------------------------------------------------------
+
+
+combat:
+    ; display player's health in combat
+    bsr         clear_screen
+    lea         combat_hp_msg, A1
+    move.b      #14, D0
+    trap        #15
+
+    clr         D1
+    move.b      health, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    ; display thief's health in combat
+    lea         thief_hp_msg, A1
+    move.b      #14, D0
+    trap        #15
+
+    clr         D1
+    move.b      thief_health, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    lea         combat_msg, A1
+    move.b      #14, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    bsr         input
+    
+    cmp         #1, D1
+    beq         attack
+    
+    cmp         #2, D1
+    beq         flee
+    bne         combat
+
+
+*-------------------------------------------------------
+*---Attack (Combat)-------------------------------------
+*-------------------------------------------------------
+
+
+attack:
+    bsr         clear_screen
+    lea         attack_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      damage, D1
+    move.b      #3, D0
+    trap        #15
+    
+    lea         dmg_msg, A1
+    move.b      #14, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    bsr         combat
+    
+    
+*-------------------------------------------------------
+*---Flee (Combat)-------------------------------------
+*-------------------------------------------------------
+
+
+flee:
+    bsr         clear_screen
+    lea         flee_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    sub.b       #1, honour
+    
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    bsr         combat
 
 
 *-------------------------------------------------------
@@ -587,21 +706,50 @@ treasure_msg:         dc.b    'After walking for a while, you stumble upon a sma
                       dc.b    $0D,$0A
                       dc.b    '<== you found 10g ==>',0
 gold_msg:             dc.b    'Gold: ',0
-stamina_lack_msg      dc.b    'You are too tired to travel. rest up by setting up a camp!',0
+stamina_lack_msg:     dc.b    'You are too tired to travel. rest up by setting up a camp!',0
 camp_msg:             dc.b    'You setup a campfire and go to sleep.'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '<== Stamina fully restored! ==>',0
+thief_msg:            dc.b    'While exploring the wilderness, you are attacked by a thief!'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== Combat initiated! ==>',0
+combat_msg:           dc.b    '1. Attack'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b   '2. Flee'
+                      dc.b    $0D,$0A,0
+combat_hp_msg:        dc.b   'Player: ',0
+thief_hp_msg:         dc.b   'Thief: ',0
+attack_msg:           dc.b    'You attack your opponent!'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== Dealt ',0
+dmg_msg:              dc.b    'dmg! ==>',0
+flee_msg:             dc.b    'You flee the scene!'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== you lost 1 Honour! ==>',0
 
 
-; reserve space for certain values
-health:     ds.b    1
-stamina:    ds.b    1
-steps:      ds.b    1
-gold:       ds.b    1
-damage:     ds.b    1
+; player stats
+health:         ds.b    1
+stamina:        ds.b    1
+steps:          ds.b    1
+gold:           ds.b    1
+damage:         ds.b    1
+honour:         ds.b    1
+
+
+; enemy stats
+
+; thief
+thief_health:   ds.b    1
+thief_dmg:      ds.b    1
 
     end start
+
 
 
 
