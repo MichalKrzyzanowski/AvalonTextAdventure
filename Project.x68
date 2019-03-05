@@ -25,6 +25,8 @@ win_point           EQU 5      points accumilated on win
 lose_point          EQU 8      points deducted on a loss
 treasure            EQU 2      location of treasure
 thief_combat        EQU 4      location of thief encounter
+max_hp              EQU 10
+thief_max_hp        EQU 10
 
 
 ; weapons
@@ -37,28 +39,28 @@ mine_loc    EQU 100    example for a hit
 start:
 
     ; setup player stats
-    move.b  #100, health put health in memory location
+    move.b  #max_hp, health put health in memory location
     
     move.b  #10, stamina put player stamina in memory location
 
-    move.b  #0, steps  steps taken value stored in memory location
+    move.b  #3, steps  steps taken value stored in memory location
     
     move.b  #0, gold   player gold is stored in memory location
     
-    move.b  #3, damage player gold is stored in memory location
+    move.b  #5, damage player gold is stored in memory location
     
     move.b  #0, honour
     
     
     ; setup thief stats
-    move.b  #10, thief_health
+    move.b  #thief_max_hp, thief_health
     move.b  #1, thief_dmg
 
 
-    bsr     welcome    branch to the welcome subroutine
-    bsr     input      branch to the input subroutine
-    bsr     game       branch to the game subroutine
-    
+    ; bsr     welcome    branch to the welcome subroutine
+    ; bsr     input      branch to the input subroutine
+    ; bsr     game       branch to the game subroutine
+    bsr explore
     
 *Game loop
     org     $3000      the rest of the program is to be located from 3000 onwards
@@ -392,6 +394,7 @@ combat:
     bsr         endl
     bsr         endl
     
+    ; display combat actions
     lea         combat_msg, A1
     move.b      #14, D0
     trap        #15
@@ -418,6 +421,7 @@ attack:
     move.b      #14, D0
     trap        #15
     
+    ; display the damage dealt to the enemy
     clr         D1
     move.b      damage, D1
     move.b      #3, D0
@@ -426,10 +430,49 @@ attack:
     lea         dmg_msg, A1
     move.b      #14, D0
     trap        #15
+    sub.b       D1, thief_health
     bsr         endl
     bsr         endl
     bsr         pause
-    bsr         combat
+    
+    ; display the damage the enemy has dealt to the player
+    bsr         clear_screen
+    lea         enemy_attack_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      thief_dmg, D1
+    move.b      #3, D0
+    trap        #15
+    
+    lea         dmg_msg, A1
+    move.b      #14, D0
+    trap        #15
+    sub.b       D1, health
+    
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    ; check if enemy or player has been defeated
+    clr         D1
+    move.b      health, D1
+    cmp         #0, D1
+    beq         replay
+    
+    cmp         #max_hp, D1
+    bgt         replay
+
+    clr         D1
+    move.b      thief_health, D1
+    cmp         #0, D1
+    beq         explore
+    
+    cmp         #thief_max_hp, D1
+    bgt         explore
+    
+    bne         combat
     
     
 *-------------------------------------------------------
@@ -507,6 +550,18 @@ display_stats:
     clr         D1
     move.b      #103, D1
     move.b      #6, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    ; display honour message and current honour the player has
+    lea         honour_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      honour, D1
+    move.b      #3, D0
     trap        #15
     bsr         endl
     bsr         endl
@@ -699,6 +754,7 @@ pause_msg:            dc.b    'Press Enter to continue...',0
 health_msg:           dc.b    'Health: ',0
 stamina_msg:          dc.b    'Stamina: ',0
 steps_msg:            dc.b    'Steps Taken: ',0
+honour_msg:            dc.b    'Honour: ',0
 treasure_msg:         dc.b    'After walking for a while, you stumble upon a small satchet.'
                       dc.b    $0D,$0A
                       dc.b    'You search the satchet.'
@@ -726,7 +782,11 @@ attack_msg:           dc.b    'You attack your opponent!'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '<== Dealt ',0
-dmg_msg:              dc.b    'dmg! ==>',0
+enemy_attack_msg:     dc.b    'Your opponent strikes back!'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== Dealt ',0
+dmg_msg:              dc.b    ' dmg! ==>',0
 flee_msg:             dc.b    'You flee the scene!'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
@@ -749,6 +809,8 @@ thief_health:   ds.b    1
 thief_dmg:      ds.b    1
 
     end start
+
+
 
 
 
