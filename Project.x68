@@ -25,8 +25,8 @@ win_point           EQU 5      points accumilated on win
 lose_point          EQU 8      points deducted on a loss
 treasure            EQU 2      location of treasure
 thief_combat        EQU 4      location of thief encounter
-max_hp              EQU 10
-thief_max_hp        EQU 10
+max_hp              EQU 10     max hp of player
+thief_max_hp        EQU 10     max hp of thief enemy
 
 
 ; weapons
@@ -50,6 +50,8 @@ start:
     move.b  #5, damage player gold is stored in memory location
     
     move.b  #0, honour
+    
+    move.b  #0, water_flask water flasks used to restore hp
     
     
     ; setup thief stats
@@ -251,7 +253,7 @@ explore:
     beq     camp
     
     cmp     #3, D1
-    beq     display_stats
+    beq     status
     
     move.b  stamina, D2
     cmp     #0, D2
@@ -263,6 +265,31 @@ explore:
     bsr     clear_screen
     bne     explore
 
+
+*-------------------------------------------------------
+*---Game Play (Exploration)-----------------------------
+*-------------------------------------------------------
+
+
+status:
+    bsr     clear_screen
+    lea     status_msg, A1
+    move.b  #14, D0
+    trap    #15
+    
+    bsr     input
+    
+    cmp     #1, D1
+    beq     inventory
+    
+    cmp     #2, D1
+    beq     display_stats
+    
+    cmp     #3, D1
+    beq     explore
+    
+    bne     status
+    
 
 *-------------------------------------------------------
 *---Game Play (Exploration)-----------------------------
@@ -467,12 +494,50 @@ attack:
     clr         D1
     move.b      thief_health, D1
     cmp         #0, D1
-    beq         explore
+    beq         victory
     
     cmp         #thief_max_hp, D1
-    bgt         explore
+    bgt         failure
     
     bne         combat
+    
+ 
+
+*-------------------------------------------------------
+*---Flee (Combat)-------------------------------------
+*-------------------------------------------------------
+
+
+victory:
+    bsr         clear_screen
+    lea         victory_msg, A1
+    move.b      #14, D0
+    trap        #15
+    add.b       #12, gold
+    add.b       #1, water_flask
+    add.b       #1, honour
+    
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    bsr         explore
+   
+   
+*-------------------------------------------------------
+*---Flee (Combat)-------------------------------------
+*-------------------------------------------------------
+
+
+failure:
+    bsr         clear_screen
+    lea         failure_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    bsr         hud
     
     
 *-------------------------------------------------------
@@ -486,12 +551,25 @@ flee:
     move.b      #14, D0
     trap        #15
     
-    sub.b       #1, honour
+    clr         D1
+    move.b      honour, D1
+    cmp         #0, D1
+    bne         sub_honour
     
     bsr         endl
     bsr         endl
     bsr         pause
-    bsr         combat
+    bsr         explore
+
+
+*-------------------------------------------------------
+*---Sub Honour (Exploration)--------------------------
+*-------------------------------------------------------
+
+
+sub_honour:
+    sub.b       #1, honour
+    rts
 
 
 *-------------------------------------------------------
@@ -568,10 +646,49 @@ display_stats:
     
     bsr         pause
     bsr         clear_screen
-    bsr         explore 
+    bsr         status 
     
 
+*-------------------------------------------------------
+*---Game Play (Exploration)-----------------------------
+*-------------------------------------------------------
 
+inventory:
+    ; display water flasks message and current water flasks the player has
+    bsr         clear_screen
+    lea         water_flask_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      water_flask, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    bsr         pause
+    bsr         clear_screen
+    bsr         status
+    
+    ; display weapon message and the damage of the player's damage
+    bsr         clear_screen
+    lea         water_flask_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      water_flask, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    bsr         pause
+    bsr         clear_screen
+    bsr         status
+    
+    
 *-------------------------------------------------------
 *-----------------Heads Up Display (Munny)--------------
 * Retrieves the score from memory location
@@ -737,7 +854,16 @@ travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    '2. Setup camp(restore stamina)'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
-                      dc.b    '3. View player stats'
+                      dc.b    '3. View player status'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A,0
+status_msg:           dc.b    '1. display inventory'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '2. view player stats'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '3. Return to explore'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A,0
 move_msg:             dc.b    'you walk for 1 minute!'
@@ -754,7 +880,9 @@ pause_msg:            dc.b    'Press Enter to continue...',0
 health_msg:           dc.b    'Health: ',0
 stamina_msg:          dc.b    'Stamina: ',0
 steps_msg:            dc.b    'Steps Taken: ',0
-honour_msg:            dc.b    'Honour: ',0
+honour_msg:           dc.b    'Honour: ',0
+water_flask_msg:      dc.b    'Water Flasks: ',0
+weapon_msg:           dc.b    'Weapon Damage: ',0
 treasure_msg:         dc.b    'After walking for a while, you stumble upon a small satchet.'
                       dc.b    $0D,$0A
                       dc.b    'You search the satchet.'
@@ -790,7 +918,18 @@ dmg_msg:              dc.b    ' dmg! ==>',0
 flee_msg:             dc.b    'You flee the scene!'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
-                      dc.b    '<== you lost 1 Honour! ==>',0
+                      dc.b    '<== you lost 1 Honour ==>',0
+victory_msg:          dc.b    '<== Victory Achieved! ==>'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '<== Obtained 1 Honour ==>'
+                      dc.b    $0D,$0A
+                      dc.b    '<== Obtained 12g ==>'
+                      dc.b    $0D,$0A
+                      dc.b    '<== Obtained water flask x1 ==>'
+                      dc.b    $0D,$0A,0
+failure_msg:          dc.b    '<== You Died! ==>',0
 
 
 ; player stats
@@ -799,6 +938,7 @@ stamina:        ds.b    1
 steps:          ds.b    1
 gold:           ds.b    1
 damage:         ds.b    1
+water_flask:    ds.b    1
 honour:         ds.b    1
 
 
@@ -809,6 +949,7 @@ thief_health:   ds.b    1
 thief_dmg:      ds.b    1
 
     end start
+
 
 
 
