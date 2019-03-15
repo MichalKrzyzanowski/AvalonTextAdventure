@@ -23,16 +23,18 @@ max_potions         EQU 9      max number of potions
 min_weapons         EQU 6      min weapons
 win_point           EQU 5      points accumilated on win
 lose_point          EQU 8      points deducted on a loss
-treasure            EQU 2      location of treasure
-thief_combat        EQU 4      location of thief encounter
 max_hp              EQU 10     max hp of player
 thief_max_hp        EQU 10     max hp of thief enemy
 
 
-; weapons
+; events
+treasure            EQU 2      location of treasure
+thief_combat        EQU 4      location of thief encounter
+peddlar             EQU 8      location of wandering peddlar(shop) event
 
 
-mine_loc    EQU 100    example for a hit
+; weapons(maybe)
+
 
 
 *Start of Game
@@ -43,7 +45,7 @@ start:
     
     move.b  #10, stamina put player stamina in memory location
 
-    move.b  #3, steps  steps taken value stored in memory location
+    move.b  #7, steps  steps taken value stored in memory location
     
     move.b  #0, gold   player gold is stored in memory location
     
@@ -232,7 +234,6 @@ gameplay:
     bsr     clear_screen
     bne     gameplay
     
-    bsr     collision
     rts
 
 
@@ -352,6 +353,11 @@ movement:
     cmp     #thief_combat, D1
     
     beq     thief_encounter
+    
+    cmp     #peddlar, D1
+    
+    beq     peddlar_encounter
+    
     bne     explore
     
     
@@ -390,6 +396,58 @@ thief_encounter:
     bsr     combat
 
 
+*-------------------------------------------------------
+*---Thief Encounter Event (Exploration)-----------------
+*-------------------------------------------------------
+
+
+peddlar_encounter:
+    bsr     clear_screen
+    lea     peddlar_enct_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     input
+    
+    cmp     1, D1
+    beq     shop
+    
+    cmp     2, D1
+    beq     murderer_quest
+    
+    cmp     3, D1
+    beq     explore
+
+    bne     peddlar_encounter
+    
+    
+    
+*-------------------------------------------------------
+*---Combat (Exploration)-----------------------------
+*-------------------------------------------------------
+
+    
+shop:
+    
+
+
+*-------------------------------------------------------
+*---Combat (Exploration)-----------------------------
+*-------------------------------------------------------
+
+    
+murderer_quest:
+    
+
+*-------------------------------------------------------
+*---Combat (Exploration)-----------------------------
+*-------------------------------------------------------
+
+    
+shop:
+    
+    
 *-------------------------------------------------------
 *---Combat (Exploration)-----------------------------
 *-------------------------------------------------------
@@ -500,8 +558,7 @@ attack:
     bgt         failure
     
     bne         combat
-    
- 
+     
 
 *-------------------------------------------------------
 *---Flee (Combat)-------------------------------------
@@ -516,6 +573,9 @@ victory:
     add.b       #12, gold
     add.b       #1, water_flask
     add.b       #1, honour
+    
+    ; reset enemy health
+    move.b      #thief_max_hp, thief_health
     
     bsr         endl
     bsr         endl
@@ -551,25 +611,18 @@ flee:
     move.b      #14, D0
     trap        #15
     
-    clr         D1
-    move.b      honour, D1
-    cmp         #0, D1
-    bne         sub_honour
-    
     bsr         endl
     bsr         endl
     bsr         pause
-    bsr         explore
-
-
-*-------------------------------------------------------
-*---Sub Honour (Exploration)--------------------------
-*-------------------------------------------------------
-
-
-sub_honour:
+    
+    clr         D1
+    move.b      honour, D1
+    cmp         #0, D1
+    beq         explore
+    
     sub.b       #1, honour
-    rts
+    
+    bsr         explore
 
 
 *-------------------------------------------------------
@@ -646,7 +699,7 @@ display_stats:
     
     bsr         pause
     bsr         clear_screen
-    bsr         status 
+    bsr         status
     
 
 *-------------------------------------------------------
@@ -666,19 +719,14 @@ inventory:
     trap        #15
     bsr         endl
     bsr         endl
-    
-    bsr         pause
-    bsr         clear_screen
-    bsr         status
-    
+        
     ; display weapon message and the damage of the player's damage
-    bsr         clear_screen
-    lea         water_flask_msg, A1
+    lea         weapon_msg, A1
     move.b      #14, D0
     trap        #15
     
     clr         D1
-    move.b      water_flask, D1
+    move.b      damage, D1
     move.b      #3, D0
     trap        #15
     bsr         endl
@@ -715,10 +763,7 @@ hud:
 *-------------------------------------------------------
 
 
-collision:
-    move.b  #mine_loc,D1
-    cmp     #100,D1 is( x == 100)?
-	bne     collision_miss if x is equal to 100, then hit
+
 collision_hit:
     *hit
     lea     hit_msg,A1
@@ -857,7 +902,15 @@ travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    '3. View player status'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A,0
-status_msg:           dc.b    '1. display inventory'
+status_msg:           dc.b	  '            *--------*.'
+				      dc.b	  $0D, $0A
+				      dc.b	  '            | Status |'
+				      dc.b	  $0D, $0A
+				      dc.b	  '            *--------*'
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+                      dc.b    '1. display inventory'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '2. view player stats'
@@ -899,7 +952,15 @@ thief_msg:            dc.b    'While exploring the wilderness, you are attacked 
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '<== Combat initiated! ==>',0
-combat_msg:           dc.b    '1. Attack'
+combat_msg:           dc.b	  '            *--------*.'
+				      dc.b	  $0D, $0A
+				      dc.b	  '            | Combat |'
+				      dc.b	  $0D, $0A
+				      dc.b	  '            *--------*'
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+                      dc.b    '1. Attack'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b   '2. Flee'
@@ -930,6 +991,49 @@ victory_msg:          dc.b    '<== Victory Achieved! ==>'
                       dc.b    '<== Obtained water flask x1 ==>'
                       dc.b    $0D,$0A,0
 failure_msg:          dc.b    '<== You Died! ==>',0
+peddlar_enct_msg:     dc.b	'As you explore the land, you come across a wandering peddlar.'
+					  dc.b	$0D, $0A
+					  dc.b	$0D, $0A
+					  dc.b	'The peddlar approaches you.'
+					  dc.b	$0D, $0A
+					  dc.b	$0D, $0A
+					  dc.b	'Peddlar: Greetings! May I intrest you in my wares?'
+					  dc.b	$0D, $0A
+					  dc.b	$0D, $0A
+					  dc.b	$0D, $0A
+					  dc.b	'1. Browse Wares'
+					  dc.b	$0D, $0A
+					  dc.b	$0D, $0A
+					  dc.b	'2. Rumours'
+					  dc.b	$0D, $0A
+					  dc.b	$0D, $0A
+					  dc.b	'3. Leave',0
+shop_msg:			  dc.b	'            *------*.'
+				      dc.b	$0D, $0A
+				      dc.b	'            | Shop |'
+				      dc.b	$0D, $0A
+				      dc.b	'            *------*'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'1. Water Flask x1			10g'
+				      dc.b	$0D, $0A
+				      dc.b	'2. Weapon Enchancement <+2dmg>		20g'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A,0
+rumour_msg:			  dc.b	'You ask the peddlar for rumours.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'Peddlar: Rumours? Well it is said that there is a murderer on the loose.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'Peddlar: Apparently, he was last seen in the village.'
+				      dc.b	'Peddlar: The Bounty for getting rid of this guy is preeety high.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'<== Started "Eliminate the Murderer" Quest ==>',0
 
 
 ; player stats
@@ -949,6 +1053,8 @@ thief_health:   ds.b    1
 thief_dmg:      ds.b    1
 
     end start
+
+
 
 
 
