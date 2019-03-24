@@ -394,6 +394,7 @@ return:
     lea     return_msg, A1
     move.b  #14, D0
     trap    #15
+    move.b  #0, steps
     bsr     endl
     bsr     endl
     bsr     input
@@ -1622,6 +1623,7 @@ murderer_hp:    ds.b    1
 murderer_dmg:   ds.b    1 
 
     end start
+
 
 
 
