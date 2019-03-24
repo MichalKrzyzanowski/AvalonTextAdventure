@@ -41,19 +41,21 @@ peddlar             EQU 8      location of wandering peddlar(shop) event
 start:
 
     ; setup player stats
-    move.b  #max_hp, health put health in memory location
+    move.b  #max_hp, health  player's health, game over if 0
     
-    move.b  #10, stamina put player stamina in memory location
+    move.b  #10, stamina  player's stamina, needed for exploring
 
-    move.b  #7, steps  steps taken value stored in memory location
+    move.b  #7, steps  steps taken, used for player movement
     
-    move.b  #0, gold   player gold is stored in memory location
+    move.b  #35, gold  player's gold, used to buy water or upgrade weapon
     
-    move.b  #5, damage player gold is stored in memory location
+    move.b  #5, damage  damage of player's weapon
     
-    move.b  #0, honour
+    move.b  #0, honour  player's honour, gained after winning battles
     
-    move.b  #0, water_flask water flasks used to restore hp
+    move.b  #0, water_flask  water flasks used to restore hp
+    
+    move.b  #0, murder_quest  boolean checking if murderer quest is active
     
     
     ; setup thief stats
@@ -219,12 +221,12 @@ weapons:
 gameplay:
     bsr     endl
     bsr     decorate
-    lea     gameplay_msg,A1
+    lea     gameplay_msg, A1
     move.b  #14,D0
     trap    #15
     bsr     decorate
     bsr     pause
-    lea     chapterOne,A1
+    lea     village_msg, A1
     move.b  #14,D0
     trap    #15
     bsr     input
@@ -255,6 +257,9 @@ explore:
     
     cmp     #3, D1
     beq     status
+    
+    cmp     #4, D1
+    beq     return
     
     move.b  stamina, D2
     cmp     #0, D2
@@ -359,8 +364,30 @@ movement:
     beq     peddlar_encounter
     
     bne     explore
+     
+    
+*-------------------------------------------------------
+*---Treasure Event (Exploration)------------------------
+*------------------------------------------------------- 
+
+
+return:
+    bsr     clear_screen
+    clr     D1
+    move.b  murder_quest, D1
+    cmp     #0, D1
+    beq     cannot_return
     
     
+*-------------------------------------------------------
+*---Treasure Event (Exploration)------------------------
+*-------------------------------------------------------
+
+
+cannot_return:
+    
+
+
 *-------------------------------------------------------
 *---Treasure Event (Exploration)------------------------
 *-------------------------------------------------------
@@ -410,13 +437,14 @@ peddlar_encounter:
     bsr     endl
     bsr     input
     
-    cmp     1, D1
+    
+    cmp     #1, D1
     beq     shop
     
-    cmp     2, D1
+    cmp     #2, D1
     beq     murderer_quest
     
-    cmp     3, D1
+    cmp     #3, D1
     beq     explore
 
     bne     peddlar_encounter
@@ -429,25 +457,129 @@ peddlar_encounter:
 
     
 shop:
+    bsr     clear_screen
+    lea     shop_msg, A1
+    move.b  #14, D0
+    trap    #15
+    
+    bsr     input
+    
+    cmp     #1, D1
+    beq     buy_water
+    
+    cmp     #2, D1
+    beq     upgrade_weapon
+    
+    cmp     #3, D1
+    beq     peddlar_encounter
+    
+    bne     shop
     
 
 
 *-------------------------------------------------------
-*---Combat (Exploration)-----------------------------
+*---Buy water flasks------------------------------------
 *-------------------------------------------------------
 
+
+buy_water:
+    bsr     clear_screen 
+    clr     D1
+    move.b  gold, D1
+    cmp     #10, D1
+    blt     no_gold
     
+    
+    sub.b   #10, gold
+    add.b   #1, water_flask
+    lea     water_gained_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    
+    bsr     shop
+
+
+*-------------------------------------------------------
+*---No Enough Gold--------------------------------------
+*-------------------------------------------------------
+
+
+no_gold:
+    bsr     clear_screen
+    lea     no_gold_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    
+    bsr     shop
+
+
+*-------------------------------------------------------
+*---Upgrade weapon damage-------------------------------
+*-------------------------------------------------------
+
+
+upgrade_weapon:
+    bsr     clear_screen
+    clr     D1
+    move.b  gold, D1
+    cmp     #20, D1
+    blt     no_gold
+    
+    sub.b   #20, gold
+    add.b   #2, damage
+    lea     upgrade_gained_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    
+    bsr     shop
+
+  
+*-------------------------------------------------------
+*--Murderer Quest Info----------------------------------
+*-------------------------------------------------------
+  
 murderer_quest:
+    bsr     clear_screen
     
-
+    clr     D1
+    move.b  murder_quest, D1
+    cmp     #1, D1
+    beq     quest_active
+    
+    add.b   #1, murder_quest
+    lea     rumour_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     peddlar_encounter
+    
+    
 *-------------------------------------------------------
-*---Combat (Exploration)-----------------------------
+*--Murderer Quest Already Active------------------------
 *-------------------------------------------------------
 
-    
-shop:
-    
-    
+
+quest_active:
+    lea     quest_active_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     peddlar_encounter
+
+
 *-------------------------------------------------------
 *---Combat (Exploration)-----------------------------
 *-------------------------------------------------------
@@ -872,10 +1004,11 @@ endl:
 crlf:                 dc.b    $0D,$0A,0
 welcome_msg:          dc.b    '************************************************************'
                       dc.b    $0D,$0A
-                      dc.b    'Avalon: The Legend Lives'
+                      dc.b    'Avalon: The Mysterious Foe'
                       dc.b    $0D,$0A
                       dc.b    '************************************************************'
-                      dc.b    $0D,$0A,0   
+                      dc.b    $0D,$0A,0
+
 potion_msg:           dc.b    'Feed load (each horse needs at least 100 units of feed)'
                       dc.b    $0D,$0A
                       dc.b    'Enter feed load : ',0
@@ -886,11 +1019,19 @@ weapons_msg:          dc.b    'Each quest need at least 2 Weapons'
                       dc.b    $0D,$0A
                       dc.b    'Enter # of weapons : ',0
 gameplay_msg:         dc.b    'Village',0
-chapterOne:           dc.b    'you are standing in the village square.'
+village_msg:          dc.b    'you enter the village square.'
                       dc.b    $0D,$0A
                       dc.b    'What do you do?'
                       dc.b    $0D,$0A
-                      dc.b    '1. Explore land'
+                      dc.b    '1. Explore the lands'
+                      dc.b    $0D,$0A,0
+return_msg:           dc.b    'you return to the village square.'
+                      dc.b    $0D,$0A
+                      dc.b    'What do you do?'
+				      dc.b    $0D,$0A
+                      dc.b    '1. explore the lands'
+                      dc.b    $0D,$0A
+                      dc.b    '2. Search for the murderer'
                       dc.b    $0D,$0A,0
 explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
 travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
@@ -901,12 +1042,15 @@ travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    $0D,$0A
                       dc.b    '3. View player status'
                       dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '4. Return to the village.'
+                      dc.b    $0D,$0A
                       dc.b    $0D,$0A,0
-status_msg:           dc.b	  '            *--------*.'
+status_msg:           dc.b	  '*--------*'
 				      dc.b	  $0D, $0A
-				      dc.b	  '            | Status |'
+				      dc.b	  '| Status |'
 				      dc.b	  $0D, $0A
-				      dc.b	  '            *--------*'
+				      dc.b	  '*--------*'
 				      dc.b	  $0D, $0A
 				      dc.b	  $0D, $0A
 				      dc.b	  $0D, $0A
@@ -952,12 +1096,7 @@ thief_msg:            dc.b    'While exploring the wilderness, you are attacked 
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '<== Combat initiated! ==>',0
-combat_msg:           dc.b	  '            *--------*.'
-				      dc.b	  $0D, $0A
-				      dc.b	  '            | Combat |'
-				      dc.b	  $0D, $0A
-				      dc.b	  '            *--------*'
-				      dc.b	  $0D, $0A
+combat_msg:  	      dc.b	  $0D, $0A
 				      dc.b	  $0D, $0A
 				      dc.b	  $0D, $0A
                       dc.b    '1. Attack'
@@ -1008,17 +1147,21 @@ peddlar_enct_msg:     dc.b	'As you explore the land, you come across a wandering
 					  dc.b	$0D, $0A
 					  dc.b	$0D, $0A
 					  dc.b	'3. Leave',0
-shop_msg:			  dc.b	'            *------*.'
+shop_msg:			  dc.b	'*------*'
 				      dc.b	$0D, $0A
-				      dc.b	'            | Shop |'
+				      dc.b	'| Shop |'
 				      dc.b	$0D, $0A
-				      dc.b	'            *------*'
+				      dc.b	'*------*'
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
-				      dc.b	'1. Water Flask x1			10g'
+				      dc.b	'1. Water Flask                          10g'
 				      dc.b	$0D, $0A
 				      dc.b	'2. Weapon Enchancement <+2dmg>		20g'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b  '3. Return'
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A,0
 rumour_msg:			  dc.b	'You ask the peddlar for rumours.'
@@ -1029,12 +1172,36 @@ rumour_msg:			  dc.b	'You ask the peddlar for rumours.'
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
 				      dc.b	'Peddlar: Apparently, he was last seen in the village.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
 				      dc.b	'Peddlar: The Bounty for getting rid of this guy is preeety high.'
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
 				      dc.b	'<== Started "Eliminate the Murderer" Quest ==>',0
+no_gold_msg:	      dc.b	'Not enough gold!',0
+water_gained_msg:	  dc.b	'<== You Bought a Water Flask! ==>',0
+upgrade_gained_msg:	  dc.b	'<== You Upgraded your weapon by 2dmg! ==>',0
+quest_active_msg:	  dc.b	'You ask the peddlar for more rumours.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'Peddlar: Rumours? nothing new I''m afraid...',0
+cannot_return_msg:	  dc.b	'You should find some information regarding the dissappearances first!',0
+search_msg:			  dc.b	'You begin searching for the murderer.'
+				      dc.b    $0D,$0A
+				      dc.b    $0D,$0A
+				      dc.b	'after Countless hours, you find a secret passage leading to a dark room'
+				      dc.b    $0D,$0A
+				      dc.b    $0D,$0A
+				      dc.b	'In the room, a shrouded figure attacks you!'
+				      dc.b    $0D,$0A
+				      dc.b    $0D,$0A
+				      dc.b    $0D,$0A
+				      dc.b	'<== Combat Initiated! ==>',0
 
+
+murder_quest:   ds.b    1
 
 ; player stats
 health:         ds.b    1
@@ -1053,6 +1220,8 @@ thief_health:   ds.b    1
 thief_dmg:      ds.b    1
 
     end start
+
+
 
 
 
