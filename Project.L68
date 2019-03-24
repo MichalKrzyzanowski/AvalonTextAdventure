@@ -1,1229 +1,1616 @@
 00001000 Starting Address
 Assembler used: EASy68K Editor/Assembler v5.16.01
-Created On: 2019-03-24 15:51:23
+Created On: 2019-03-24 20:38:12
 
 00001000                             1      org $1000
 00001000                             2  *-------------------------------------------------------
 00001000                             3  * Author: Michal Krzyzanowski
 00001000                             4  * Login: C00240696 
 00001000                             5  * Date: 21/01/19
-00001000                             6  * Title: --
-00001000                             7  * Description: --
-00001000                             8  *-------------------------------------------------------
-00001000                             9  *Choose to be a Worker or a God 
-00001000                            10  *https://www.avalon-rpg.com/
-00001000                            11  *-------------------------------------------------------
-00001000                            12  
-00001000                            13  *-------------------------------------------------------
-00001000                            14  *Validation values to be used, modify as needed
-00001000                            15  *Add additional validation values as required-------
-00001000                            16  *------------------------------------------------
-00001000                            17  
+00001000                             6  * Title: Avalon: The Mysterious Foe
+00001000                             7  * Description: text-based adventure game, goal is to explore the world and complete
+00001000                             8  * encouters such as battles and treasures
+00001000                             9  *-------------------------------------------------------
+00001000                            10  *Choose to be a Worker or a God 
+00001000                            11  *https://www.avalon-rpg.com/
+00001000                            12  *-------------------------------------------------------
+00001000                            13  
+00001000                            14  *-------------------------------------------------------
+00001000                            15  *Validation values to be used, modify as needed
+00001000                            16  *Add additional validation values as required-------
+00001000                            17  *------------------------------------------------
 00001000                            18  
-00001000  =00000000                 19  exit                EQU 0      used to exit assembly program
-00001000  =00000064                 20  min_feed            EQU 100    min feed requirement
-00001000  =00000001                 21  min_potions         EQU 1      min number of potions
-00001000  =00000009                 22  max_potions         EQU 9      max number of potions
-00001000  =00000006                 23  min_weapons         EQU 6      min weapons
-00001000  =00000005                 24  win_point           EQU 5      points accumilated on win
-00001000  =00000008                 25  lose_point          EQU 8      points deducted on a loss
-00001000  =0000000A                 26  max_hp              EQU 10     max hp of player
-00001000  =0000000A                 27  thief_max_hp        EQU 10     max hp of thief enemy
-00001000                            28  
-00001000                            29  
-00001000                            30  ; events
-00001000  =00000002                 31  treasure            EQU 2      location of treasure
-00001000  =00000004                 32  thief_combat        EQU 4      location of thief encounter
-00001000  =00000008                 33  peddlar             EQU 8      location of wandering peddlar(shop) event
-00001000                            34  
-00001000                            35  
-00001000                            36  ; weapons(maybe)
-00001000                            37  
+00001000                            19  
+00001000  =00000000                 20  exit                EQU 0      used to exit assembly program
+00001000  =00000064                 21  min_feed            EQU 100    min feed requirement
+00001000  =00000001                 22  min_potions         EQU 1      min number of potions
+00001000  =00000009                 23  max_potions         EQU 9      max number of potions
+00001000  =00000006                 24  min_weapons         EQU 6      min weapons
+00001000  =00000005                 25  win_point           EQU 5      points accumilated on win
+00001000  =00000008                 26  lose_point          EQU 8      points deducted on a loss
+00001000                            27  
+00001000  =0000000A                 28  max_hp              EQU 10     max hp of player
+00001000  =0000000A                 29  thief_max_hp        EQU 10     max hp of thief enemy
+00001000  =00000014                 30  murderer_max_hp     EQU 20     max hp of murderer
+00001000                            31  
+00001000                            32  
+00001000                            33  ; events
+00001000  =00000002                 34  treasure            EQU 2      location of treasure
+00001000  =00000004                 35  thief_combat        EQU 4      location of thief encounter
+00001000  =00000008                 36  peddlar             EQU 8      location of wandering peddlar(shop) event
+00001000  =0000000C                 37  thief_combat_two    EQU 12     location of second thief encounter
 00001000                            38  
 00001000                            39  
-00001000                            40  *Start of Game
-00001000                            41  start:
-00001000                            42  
-00001000                            43      ; setup player stats
-00001000  13FC 000A 0000426A        44      move.b  #max_hp, health  player's health, game over if 0
-00001008                            45      
-00001008  13FC 000A 0000426B        46      move.b  #10, stamina  player's stamina, needed for exploring
-00001010                            47  
-00001010  13FC 0007 0000426C        48      move.b  #7, steps  steps taken, used for player movement
-00001018                            49      
-00001018  13FC 0023 0000426D        50      move.b  #35, gold  player's gold, used to buy water or upgrade weapon
-00001020                            51      
-00001020  13FC 0005 0000426E        52      move.b  #5, damage  damage of player's weapon
-00001028                            53      
-00001028  13FC 0000 00004270        54      move.b  #0, honour  player's honour, gained after winning battles
-00001030                            55      
-00001030  13FC 0000 0000426F        56      move.b  #0, water_flask  water flasks used to restore hp
-00001038                            57      
-00001038  13FC 0000 00004269        58      move.b  #0, murder_quest  boolean checking if murderer quest is active
-00001040                            59      
-00001040                            60      
-00001040                            61      ; setup thief stats
-00001040  13FC 000A 00004271        62      move.b  #thief_max_hp, thief_health
-00001048  13FC 0001 00004272        63      move.b  #1, thief_dmg
-00001050                            64  
-00001050                            65  
-00001050                            66      ; bsr     welcome    branch to the welcome subroutine
-00001050                            67      ; bsr     input      branch to the input subroutine
-00001050                            68      ; bsr     game       branch to the game subroutine
-00001050  6100 20BE                 69      bsr explore
-00001054                            70      
-00001054                            71  *Game loop
-00003000                            72      org     $3000      the rest of the program is to be located from 3000 onwards
-00003000                            73  
-00003000                            74  
-00003000                            75  *-------------------------------------------------------
-00003000                            76  *-------------------Game Subroutine---------------------
-00003000                            77  *-------------------------------------------------------
-00003000                            78  
+00001000                            40  
+00001000                            41  
+00001000                            42  *Start of Game
+00001000                            43  start:
+00001000                            44  
+00001000                            45      ; setup player stats
+00001000  13FC 000A 00004949        46      move.b  #max_hp, health  player's health, game over if 0
+00001008                            47      
+00001008  13FC 000A 0000494A        48      move.b  #10, stamina  player's stamina, needed for exploring
+00001010                            49  
+00001010  13FC 0007 0000494B        50      move.b  #7, steps  steps taken, used for player movement
+00001018                            51      
+00001018  13FC 0023 0000494C        52      move.b  #35, gold  player's gold, used to buy water or upgrade weapon
+00001020                            53      
+00001020  13FC 0004 0000494D        54      move.b  #4, damage  damage of player's weapon
+00001028                            55      
+00001028  13FC 0000 0000494F        56      move.b  #0, honour  player's honour, gained after winning battles
+00001030                            57      
+00001030  13FC 0000 0000494E        58      move.b  #0, water_flask  water flasks used to restore hp
+00001038                            59      
+00001038  13FC 0000 00004947        60      move.b  #0, murder_quest  boolean checking if murderer quest is active
+00001040                            61      
+00001040  13FC 0000 00004948        62      move.b  #0, boss_battle  boolean if player is fighting the murderer
+00001048                            63      
+00001048                            64      
+00001048                            65      ; setup thief stats
+00001048  13FC 000A 00004950        66      move.b  #thief_max_hp, thief_health
+00001050  13FC 0001 00004951        67      move.b  #1, thief_dmg
+00001058                            68      
+00001058                            69      ; setup shrouded figure stats
+00001058  13FC 0014 00004952        70      move.b  #murderer_max_hp, murderer_hp
+00001060  13FC 0004 00004953        71      move.b  #4, murderer_dmg
+00001068                            72  
+00001068                            73  
+00001068  6100 1F9C                 74      bsr welcome    branch to the welcome subroutine
+0000106C                            75      ;bsr explore
+0000106C                            76      
+0000106C                            77  *Game loop
+00003000                            78      org     $3000      the rest of the program is to be located from 3000 onwards
 00003000                            79  
-00003000                            80  game:
-00003000  6100 0026                 81      bsr     gameloop   branch to gameloop subroutine
-00003004  4E75                      82      rts                return from game: subroutine
-00003006                            83            
-00003006                            84  end:
-00003006  FFFF FFFF                 85      simhalt
-0000300A                            86  
-0000300A                            87  
-0000300A                            88  *-------------------------------------------------------
-0000300A                            89  *-------------------Welcome Subroutine------------------
-0000300A                            90  *-------------------------------------------------------
-0000300A                            91  
-0000300A                            92  
-0000300A                            93  welcome:
-0000300A  6100 0754                 94      bsr     endl            branch to endl subroutine
-0000300E  43F9 00003779             95      lea     welcome_msg,A1  assign message to address register A1
-00003014  103C 000E                 96      move.b  #14,D0          move literal 14 to DO
-00003018  4E4F                      97      trap    #15             trap and interpret value in D0
-0000301A  6100 0744                 98      bsr     endl            branch to endl subroutine
-0000301E  4E75                      99      rts                     return from welcome: subroutine
-00003020                           100      
-00003020                           101  
-00003020                           102  
-00003020                           103  *-------------------------------------------------------
-00003020                           104  *---------Gameplay Input Values Subroutine--------------
-00003020                           105  *------------------------------------------------------- 
-00003020                           106  
-00003020                           107     
-00003020                           108  input:
-00003020  103C 0004                109      move.b  #4, D0
-00003024  4E4F                     110      trap    #15
-00003026  4E75                     111      rts
-00003028                           112     
-00003028                           113      
-00003028                           114  *-------------------------------------------------------
-00003028                           115  *----------------Gameloop (main loop)-------------------
-00003028                           116  *------------------------------------------------------- 
-00003028                           117  
-00003028                           118  
-00003028                           119  gameloop:
-00003028  6100 0028                120      bsr     update          branch to update game subroutine 
-0000302C  6100 06D8                121      bsr     clear_screen    clears the screen         
-00003030  6100 003A                122      bsr     draw            branch to draw screen subroutine
-00003034  6100 06D0                123      bsr     clear_screen    clears the screen
-00003038  6100 009A                124      bsr     gameplay        branch to gameplay subroutine
-0000303C  6100 06C8                125      bsr     clear_screen    clears the screen
-00003040  6100 0654                126      bsr     hud             branch to display HUD subroutine
-00003044  6100 06C0                127      bsr     clear_screen    clears the screen
-00003048  6100 06F4                128      bsr     replay          branch to replay game subroutine
-0000304C  6100 06B8                129      bsr     clear_screen    clears the screen
-00003050  4E75                     130      rts                     return from gameloop: subroutine
-00003052                           131  
-00003052                           132  
-00003052                           133  *-------------------------------------------------------
-00003052                           134  *----------------Update Quest Progress------------------
-00003052                           135  *  Complete Quest
-00003052                           136  *------------------------------------------------------- 
-00003052                           137  
-00003052                           138  
-00003052                           139  update:
-00003052  6100 070C                140      bsr     endl            print a CR and LF
-00003056  6100 0690                141      bsr     decorate        decorate with dots using a loop
-0000305A  43F9 00003AEA            142      lea     update_msg,A1   
-00003060  103C 000E                143      move.b  #14,D0
-00003064  4E4F                     144      trap    #15
-00003066  6100 0680                145      bsr     decorate
-0000306A  4E75                     146      rts
-0000306C                           147      
-0000306C                           148      
-0000306C                           149  *-------------------------------------------------------
-0000306C                           150  *-----------------Draw Quest Updates--------------------
-0000306C                           151  * Draw the game progress information, status regarding
-0000306C                           152  * quest
-0000306C                           153  *------------------------------------------------------- 
-0000306C                           154  
-0000306C                           155  
-0000306C                           156  draw:
-0000306C  6100 06F2                157      bsr     endl
-00003070  6100 0676                158      bsr     decorate
-00003074  43F9 00003AFC            159      lea     draw_msg,A1
-0000307A  103C 000E                160      move.b  #14,D0
-0000307E  4E4F                     161      trap    #15
-00003080  6100 0666                162      bsr     decorate
-00003084  4E75                     163      rts
-00003086                           164      
-00003086                           165      
-00003086                           166  *-------------------------------------------------------
-00003086                           167  *------------------------Potions------------------------
-00003086                           168  * Input the ingredients for each potion. Ingredients costs 
-00003086                           169  * money. For an advanced mark you need to manage this 
-00003086                           170  * resource
-00003086                           171  *------------------------------------------------------- 
-00003086                           172  
-00003086                           173  
-00003086                           174  feed:
-00003086  6100 06D8                175      bsr     endl
-0000308A  6100 065C                176      bsr     decorate
-0000308E  43F9 00003812            177      lea     potion_msg,A1
-00003094  103C 000E                178      move.b  #14,D0
-00003098  4E4F                     179      trap    #15
-0000309A  6100 064C                180      bsr     decorate
-0000309E  4E75                     181      rts
-000030A0                           182  
-000030A0                           183  
-000030A0                           184  *-------------------------------------------------------
-000030A0                           185  *--------------------Potions Inventory---------------------
-000030A0                           186  * Number of potions to be used in a Quest 
-000030A0                           187  *-------------------------------------------------------
-000030A0                           188  
-000030A0                           189   
-000030A0                           190  potions:
-000030A0  6100 06BE                191      bsr     endl
-000030A4  6100 0642                192      bsr     decorate
-000030A8  43F9 0000385E            193      lea     potions_msg,A1
-000030AE  103C 000E                194      move.b  #14,D0
-000030B2  4E4F                     195      trap    #15
-000030B4  6100 0632                196      bsr     decorate
-000030B8  4E75                     197      rts
-000030BA                           198  
-000030BA                           199  
-000030BA                           200  *-------------------------------------------------------
-000030BA                           201  *-------------------------Weapons-----------------------
-000030BA                           202  * Number of weapons
-000030BA                           203  *------------------------------------------------------- 
-000030BA                           204  
-000030BA                           205    
-000030BA                           206  weapons:
-000030BA  6100 06A4                207      bsr     endl
-000030BE  6100 0628                208      bsr     decorate
-000030C2  43F9 00003873            209      lea     weapons_msg,A1
-000030C8  103C 000E                210      move.b  #14,D0
-000030CC  4E4F                     211      trap    #15
-000030CE  6100 0618                212      bsr     decorate
-000030D2  4E75                     213      rts
-000030D4                           214  
-000030D4                           215  
-000030D4                           216  *-------------------------------------------------------
-000030D4                           217  *---Game Play (Quest Progress)--------------------------
-000030D4                           218  *------------------------------------------------------- 
-000030D4                           219  
-000030D4                           220  
-000030D4                           221  gameplay:
-000030D4  6100 068A                222      bsr     endl
-000030D8  6100 060E                223      bsr     decorate
-000030DC  43F9 000038E5            224      lea     gameplay_msg, A1
-000030E2  103C 000E                225      move.b  #14,D0
-000030E6  4E4F                     226      trap    #15
-000030E8  6100 05FE                227      bsr     decorate
-000030EC  6100 0624                228      bsr     pause
-000030F0  43F9 000038ED            229      lea     village_msg, A1
-000030F6  103C 000E                230      move.b  #14,D0
-000030FA  4E4F                     231      trap    #15
-000030FC  6100 FF22                232      bsr     input
-00003100                           233      
-00003100  B27C 0001                234      cmp     #1, D1
-00003104  6700 0620                235      beq     explore_start
-00003108  6100 05FC                236      bsr     clear_screen
-0000310C  66C6                     237      bne     gameplay
-0000310E                           238      
-0000310E  4E75                     239      rts
-00003110                           240  
-00003110                           241  
-00003110                           242  *-------------------------------------------------------
-00003110                           243  *---Game Play (Exploration)-----------------------------
-00003110                           244  *-------------------------------------------------------
-00003110                           245  
-00003110                           246  
-00003110                           247  explore:
-00003110  6100 05F4                248      bsr     clear_screen
-00003114  43F9 000039C7            249      lea     travel_msg, A1
-0000311A  103C 000E                250      move.b  #14, D0
-0000311E  4E4F                     251      trap    #15
-00003120                           252      
-00003120  6100 FEFE                253      bsr     input
-00003124                           254      
-00003124  B27C 0002                255      cmp     #2, D1
-00003128  6700 007A                256      beq     camp
-0000312C                           257      
-0000312C  B27C 0003                258      cmp     #3, D1
-00003130  6700 0026                259      beq     status
-00003134                           260      
-00003134  B27C 0004                261      cmp     #4, D1
-00003138  6700 00E2                262      beq     return
-0000313C                           263      
-0000313C  1439 0000426B            264      move.b  stamina, D2
-00003142  B47C 0000                265      cmp     #0, D2
-00003146  6700 003C                266      beq     stamina_lack
-0000314A                           267      
-0000314A  B27C 0001                268      cmp     #1, D1
-0000314E  6700 007C                269      beq     movement
-00003152                           270      
-00003152  6100 05B2                271      bsr     clear_screen
-00003156  66B8                     272      bne     explore
-00003158                           273  
-00003158                           274  
-00003158                           275  *-------------------------------------------------------
-00003158                           276  *---Game Play (Exploration)-----------------------------
-00003158                           277  *-------------------------------------------------------
-00003158                           278  
-00003158                           279  
-00003158                           280  status:
-00003158  6100 05AC                281      bsr     clear_screen
-0000315C  43F9 00003A41            282      lea     status_msg, A1
-00003162  103C 000E                283      move.b  #14, D0
-00003166  4E4F                     284      trap    #15
-00003168                           285      
-00003168  6100 FEB6                286      bsr     input
-0000316C                           287      
-0000316C  B27C 0001                288      cmp     #1, D1
-00003170  6700 04D0                289      beq     inventory
-00003174                           290      
-00003174  B27C 0002                291      cmp     #2, D1
-00003178  6700 0402                292      beq     display_stats
-0000317C                           293      
-0000317C  B27C 0003                294      cmp     #3, D1
-00003180  678E                     295      beq     explore
-00003182                           296      
-00003182  66D4                     297      bne     status
-00003184                           298      
-00003184                           299  
-00003184                           300  *-------------------------------------------------------
-00003184                           301  *---Game Play (Exploration)-----------------------------
-00003184                           302  *-------------------------------------------------------
-00003184                           303  
-00003184                           304  
-00003184                           305  stamina_lack:
-00003184  6100 0580                306      bsr     clear_screen
-00003188  43F9 00003C2B            307      lea     stamina_lack_msg, A1
-0000318E  103C 000E                308      move.b  #14, D0
-00003192  4E4F                     309      trap    #15
-00003194  6100 05CA                310      bsr     endl
-00003198  6100 05C6                311      bsr     endl
-0000319C                           312      
-0000319C  6100 0574                313      bsr     pause
-000031A0  6100 FF6E                314      bsr     explore
-000031A4                           315      
-000031A4                           316  
-000031A4                           317  *-------------------------------------------------------
-000031A4                           318  *---Game Play (Exploration)-----------------------------
-000031A4                           319  *-------------------------------------------------------
-000031A4                           320  
-000031A4                           321  
-000031A4                           322  camp:
-000031A4  6100 0560                323      bsr     clear_screen
-000031A8  43F9 00003C66            324      lea     camp_msg, A1
-000031AE  103C 000E                325      move.b  #14, D0
-000031B2  4E4F                     326      trap    #15
-000031B4  13FC 000A 0000426B       327      move.b  #10, stamina
-000031BC  6100 05A2                328      bsr     endl
-000031C0  6100 059E                329      bsr     endl
-000031C4  6100 054C                330      bsr     pause
-000031C8  6100 FF46                331      bsr     explore    
-000031CC                           332  
-000031CC                           333  
-000031CC                           334  *-------------------------------------------------------
-000031CC                           335  *---Game Play (Exploration)-----------------------------
-000031CC                           336  *-------------------------------------------------------
-000031CC                           337  
-000031CC                           338  
-000031CC                           339  movement:
-000031CC  6100 0538                340      bsr     clear_screen
-000031D0  5239 0000426C            341      add.b   #1, steps
-000031D6  5339 0000426B            342      sub.b   #1, stamina
-000031DC  43F9 00003AB2            343      lea     move_msg, A1
-000031E2  103C 000E                344      move.b  #14, D0
-000031E6  4E4F                     345      trap    #15
-000031E8  6100 0576                346      bsr     endl
-000031EC  6100 0572                347      bsr     endl
-000031F0                           348      
-000031F0  6100 0520                349      bsr     pause
-000031F4  6100 0510                350      bsr     clear_screen
-000031F8                           351      
-000031F8  4241                     352      clr     D1
-000031FA  1239 0000426C            353      move.b  steps, D1
-00003200  B27C 0002                354      cmp     #treasure, D1
-00003204                           355      
-00003204  6700 002A                356      beq     event_treasure
-00003208                           357      
-00003208  B27C 0004                358      cmp     #thief_combat, D1
-0000320C                           359      
-0000320C  6700 004E                360      beq     thief_encounter
-00003210                           361      
-00003210  B27C 0008                362      cmp     #peddlar, D1
-00003214                           363      
-00003214  6700 006A                364      beq     peddlar_encounter
-00003218                           365      
-00003218  6600 FEF6                366      bne     explore
-0000321C                           367       
-0000321C                           368      
-0000321C                           369  *-------------------------------------------------------
-0000321C                           370  *---Treasure Event (Exploration)------------------------
-0000321C                           371  *------------------------------------------------------- 
-0000321C                           372  
-0000321C                           373  
-0000321C                           374  return:
-0000321C  6100 04E8                375      bsr     clear_screen
-00003220  4241                     376      clr     D1
-00003222  1239 00004269            377      move.b  murder_quest, D1
-00003228  B27C 0000                378      cmp     #0, D1
-0000322C  6700 0002                379      beq     cannot_return
-00003230                           380      
-00003230                           381      
-00003230                           382  *-------------------------------------------------------
-00003230                           383  *---Treasure Event (Exploration)------------------------
-00003230                           384  *-------------------------------------------------------
-00003230                           385  
-00003230                           386  
-00003230                           387  cannot_return:
-00003230                           388      
-00003230                           389  
-00003230                           390  
-00003230                           391  *-------------------------------------------------------
-00003230                           392  *---Treasure Event (Exploration)------------------------
-00003230                           393  *-------------------------------------------------------
-00003230                           394  
-00003230                           395  
-00003230                           396  event_treasure:
-00003230  6100 04D4                397      bsr     clear_screen
-00003234  43F9 00003BB5            398      lea     treasure_msg, A1
-0000323A  103C 000E                399      move.b  #14, D0
-0000323E  4E4F                     400      trap    #15
-00003240  0639 000A 0000426D       401      add.b   #10, gold
-00003248  6100 0516                402      bsr     endl
-0000324C  6100 0512                403      bsr     endl
-00003250  6100 04C0                404      bsr     pause
-00003254  6100 04B0                405      bsr     clear_screen
-00003258  6100 FEB6                406      bsr     explore
-0000325C                           407  
-0000325C                           408  
-0000325C                           409  *-------------------------------------------------------
-0000325C                           410  *---Thief Encounter Event (Exploration)-----------------
-0000325C                           411  *-------------------------------------------------------
-0000325C                           412  
-0000325C                           413  
-0000325C                           414  thief_encounter:
-0000325C  6100 04A8                415      bsr     clear_screen
-00003260  43F9 00003CAF            416      lea     thief_msg, A1
-00003266  103C 000E                417      move.b  #14, D0
-0000326A  4E4F                     418      trap    #15
-0000326C  6100 04F2                419      bsr     endl
-00003270  6100 04EE                420      bsr     endl
-00003274  6100 049C                421      bsr     pause
-00003278  6100 048C                422      bsr     clear_screen
-0000327C  6100 014E                423      bsr     combat
-00003280                           424  
-00003280                           425  
-00003280                           426  *-------------------------------------------------------
-00003280                           427  *---Thief Encounter Event (Exploration)-----------------
-00003280                           428  *-------------------------------------------------------
-00003280                           429  
-00003280                           430  
-00003280                           431  peddlar_encounter:
-00003280  6100 0484                432      bsr     clear_screen
-00003284  43F9 00003E48            433      lea     peddlar_enct_msg, A1
-0000328A  103C 000E                434      move.b  #14, D0
-0000328E  4E4F                     435      trap    #15
-00003290  6100 04CE                436      bsr     endl
-00003294  6100 04CA                437      bsr     endl
-00003298  6100 FD86                438      bsr     input
-0000329C                           439      
-0000329C                           440      
-0000329C  B27C 0001                441      cmp     #1, D1
-000032A0  6700 0014                442      beq     shop
-000032A4                           443      
-000032A4  B27C 0002                444      cmp     #2, D1
-000032A8  6700 00D0                445      beq     murderer_quest
-000032AC                           446      
-000032AC  B27C 0003                447      cmp     #3, D1
-000032B0  6700 FE5E                448      beq     explore
-000032B4                           449  
-000032B4  66CA                     450      bne     peddlar_encounter
-000032B6                           451      
-000032B6                           452      
-000032B6                           453      
-000032B6                           454  *-------------------------------------------------------
-000032B6                           455  *---Combat (Exploration)-----------------------------
-000032B6                           456  *-------------------------------------------------------
-000032B6                           457  
-000032B6                           458      
-000032B6                           459  shop:
-000032B6  6100 044E                460      bsr     clear_screen
-000032BA  43F9 00003F0A            461      lea     shop_msg, A1
-000032C0  103C 000E                462      move.b  #14, D0
-000032C4  4E4F                     463      trap    #15
-000032C6                           464      
-000032C6  6100 FD58                465      bsr     input
-000032CA                           466      
-000032CA  B27C 0001                467      cmp     #1, D1
-000032CE  6700 0012                468      beq     buy_water
-000032D2                           469      
-000032D2  B27C 0002                470      cmp     #2, D1
-000032D6  6700 0066                471      beq     upgrade_weapon
-000032DA                           472      
-000032DA  B27C 0003                473      cmp     #3, D1
-000032DE  67A0                     474      beq     peddlar_encounter
-000032E0                           475      
-000032E0  66D4                     476      bne     shop
-000032E2                           477      
-000032E2                           478  
-000032E2                           479  
-000032E2                           480  *-------------------------------------------------------
-000032E2                           481  *---Buy water flasks------------------------------------
-000032E2                           482  *-------------------------------------------------------
-000032E2                           483  
-000032E2                           484  
-000032E2                           485  buy_water:
-000032E2  6100 0422                486      bsr     clear_screen 
-000032E6  4241                     487      clr     D1
-000032E8  1239 0000426D            488      move.b  gold, D1
-000032EE  B27C 000A                489      cmp     #10, D1
-000032F2  6D00 002A                490      blt     no_gold
-000032F6                           491      
-000032F6                           492      
-000032F6  0439 000A 0000426D       493      sub.b   #10, gold
-000032FE  5239 0000426F            494      add.b   #1, water_flask
-00003304  43F9 000040C1            495      lea     water_gained_msg, A1
-0000330A  103C 000E                496      move.b  #14, D0
-0000330E  4E4F                     497      trap    #15
-00003310  6100 044E                498      bsr     endl
-00003314  6100 044A                499      bsr     endl
-00003318  6100 03F8                500      bsr     pause
-0000331C                           501      
-0000331C  6198                     502      bsr     shop
-0000331E                           503  
-0000331E                           504  
-0000331E                           505  *-------------------------------------------------------
-0000331E                           506  *---No Enough Gold--------------------------------------
-0000331E                           507  *-------------------------------------------------------
-0000331E                           508  
-0000331E                           509  
-0000331E                           510  no_gold:
-0000331E  6100 03E6                511      bsr     clear_screen
-00003322  43F9 000040B0            512      lea     no_gold_msg, A1
-00003328  103C 000E                513      move.b  #14, D0
-0000332C  4E4F                     514      trap    #15
-0000332E  6100 0430                515      bsr     endl
-00003332  6100 042C                516      bsr     endl
-00003336  6100 03DA                517      bsr     pause
-0000333A                           518      
-0000333A  6100 FF7A                519      bsr     shop
-0000333E                           520  
-0000333E                           521  
-0000333E                           522  *-------------------------------------------------------
-0000333E                           523  *---Upgrade weapon damage-------------------------------
-0000333E                           524  *-------------------------------------------------------
-0000333E                           525  
-0000333E                           526  
-0000333E                           527  upgrade_weapon:
-0000333E  6100 03C6                528      bsr     clear_screen
-00003342  4241                     529      clr     D1
-00003344  1239 0000426D            530      move.b  gold, D1
-0000334A  B27C 0014                531      cmp     #20, D1
-0000334E  6DCE                     532      blt     no_gold
-00003350                           533      
-00003350  0439 0014 0000426D       534      sub.b   #20, gold
-00003358  5439 0000426E            535      add.b   #2, damage
-0000335E  43F9 000040E3            536      lea     upgrade_gained_msg, A1
-00003364  103C 000E                537      move.b  #14, D0
-00003368  4E4F                     538      trap    #15
-0000336A  6100 03F4                539      bsr     endl
-0000336E  6100 03F0                540      bsr     endl
-00003372  6100 039E                541      bsr     pause
-00003376                           542      
-00003376  6100 FF3E                543      bsr     shop
-0000337A                           544  
-0000337A                           545    
-0000337A                           546  *-------------------------------------------------------
-0000337A                           547  *--Murderer Quest Info----------------------------------
-0000337A                           548  *-------------------------------------------------------
-0000337A                           549    
-0000337A                           550  murderer_quest:
-0000337A  6100 038A                551      bsr     clear_screen
-0000337E                           552      
-0000337E  4241                     553      clr     D1
-00003380  1239 00004269            554      move.b  murder_quest, D1
-00003386  B27C 0001                555      cmp     #1, D1
-0000338A  6700 0024                556      beq     quest_active
-0000338E                           557      
-0000338E  5239 00004269            558      add.b   #1, murder_quest
-00003394  43F9 00003F90            559      lea     rumour_msg, A1
-0000339A  103C 000E                560      move.b  #14, D0
-0000339E  4E4F                     561      trap    #15
-000033A0  6100 03BE                562      bsr     endl
-000033A4  6100 03BA                563      bsr     endl
-000033A8  6100 0368                564      bsr     pause
-000033AC  6100 FED2                565      bsr     peddlar_encounter
-000033B0                           566      
-000033B0                           567      
-000033B0                           568  *-------------------------------------------------------
-000033B0                           569  *--Murderer Quest Already Active------------------------
-000033B0                           570  *-------------------------------------------------------
-000033B0                           571  
-000033B0                           572  
-000033B0                           573  quest_active:
-000033B0  43F9 0000410D            574      lea     quest_active_msg, A1
-000033B6  103C 000E                575      move.b  #14, D0
-000033BA  4E4F                     576      trap    #15
-000033BC  6100 03A2                577      bsr     endl
-000033C0  6100 039E                578      bsr     endl
-000033C4  6100 034C                579      bsr     pause
-000033C8  6100 FEB6                580      bsr     peddlar_encounter
-000033CC                           581  
-000033CC                           582  
-000033CC                           583  *-------------------------------------------------------
-000033CC                           584  *---Combat (Exploration)-----------------------------
-000033CC                           585  *-------------------------------------------------------
-000033CC                           586  
-000033CC                           587  
-000033CC                           588  combat:
-000033CC                           589      ; display player's health in combat
-000033CC  6100 0338                590      bsr         clear_screen
-000033D0  43F9 00003D26            591      lea         combat_hp_msg, A1
-000033D6  103C 000E                592      move.b      #14, D0
-000033DA  4E4F                     593      trap        #15
-000033DC                           594  
-000033DC  4241                     595      clr         D1
-000033DE  1239 0000426A            596      move.b      health, D1
-000033E4  103C 0003                597      move.b      #3, D0
-000033E8  4E4F                     598      trap        #15
-000033EA  6100 0374                599      bsr         endl
-000033EE  6100 0370                600      bsr         endl
-000033F2                           601      
-000033F2                           602      ; display thief's health in combat
-000033F2  43F9 00003D2F            603      lea         thief_hp_msg, A1
-000033F8  103C 000E                604      move.b      #14, D0
-000033FC  4E4F                     605      trap        #15
-000033FE                           606  
-000033FE  4241                     607      clr         D1
-00003400  1239 00004271            608      move.b      thief_health, D1
-00003406  103C 0003                609      move.b      #3, D0
-0000340A  4E4F                     610      trap        #15
-0000340C  6100 0352                611      bsr         endl
-00003410  6100 034E                612      bsr         endl
-00003414                           613      
-00003414                           614      ; display combat actions
-00003414  43F9 00003D09            615      lea         combat_msg, A1
-0000341A  103C 000E                616      move.b      #14, D0
-0000341E  4E4F                     617      trap        #15
-00003420  6100 033E                618      bsr         endl
-00003424  6100 033A                619      bsr         endl
-00003428  6100 FBF6                620      bsr         input
-0000342C                           621      
-0000342C  B27C 0001                622      cmp         #1, D1
-00003430  6700 000C                623      beq         attack
-00003434                           624      
-00003434  B27C 0002                625      cmp         #2, D1
-00003438  6700 010C                626      beq         flee
-0000343C  668E                     627      bne         combat
-0000343E                           628  
-0000343E                           629  
-0000343E                           630  *-------------------------------------------------------
-0000343E                           631  *---Attack (Combat)-------------------------------------
-0000343E                           632  *-------------------------------------------------------
-0000343E                           633  
-0000343E                           634  
-0000343E                           635  attack:
-0000343E  6100 02C6                636      bsr         clear_screen
-00003442  43F9 00003D37            637      lea         attack_msg, A1
-00003448  103C 000E                638      move.b      #14, D0
-0000344C  4E4F                     639      trap        #15
-0000344E                           640      
-0000344E                           641      ; display the damage dealt to the enemy
-0000344E  4241                     642      clr         D1
-00003450  1239 0000426E            643      move.b      damage, D1
-00003456  103C 0003                644      move.b      #3, D0
-0000345A  4E4F                     645      trap        #15
-0000345C                           646      
-0000345C  43F9 00003D89            647      lea         dmg_msg, A1
-00003462  103C 000E                648      move.b      #14, D0
-00003466  4E4F                     649      trap        #15
-00003468  9339 00004271            650      sub.b       D1, thief_health
-0000346E  6100 02F0                651      bsr         endl
-00003472  6100 02EC                652      bsr         endl
-00003476  6100 029A                653      bsr         pause
-0000347A                           654      
-0000347A                           655      ; display the damage the enemy has dealt to the player
-0000347A  6100 028A                656      bsr         clear_screen
-0000347E  43F9 00003D5F            657      lea         enemy_attack_msg, A1
-00003484  103C 000E                658      move.b      #14, D0
-00003488  4E4F                     659      trap        #15
-0000348A                           660      
-0000348A  4241                     661      clr         D1
-0000348C  1239 00004272            662      move.b      thief_dmg, D1
-00003492  103C 0003                663      move.b      #3, D0
-00003496  4E4F                     664      trap        #15
-00003498                           665      
-00003498  43F9 00003D89            666      lea         dmg_msg, A1
-0000349E  103C 000E                667      move.b      #14, D0
-000034A2  4E4F                     668      trap        #15
-000034A4  9339 0000426A            669      sub.b       D1, health
-000034AA                           670      
-000034AA  6100 02B4                671      bsr         endl
-000034AE  6100 02B0                672      bsr         endl
-000034B2  6100 025E                673      bsr         pause
-000034B6                           674      
-000034B6                           675      ; check if enemy or player has been defeated
-000034B6  4241                     676      clr         D1
-000034B8  1239 0000426A            677      move.b      health, D1
-000034BE  B27C 0000                678      cmp         #0, D1
-000034C2  6700 027A                679      beq         replay
-000034C6                           680      
-000034C6  B27C 000A                681      cmp         #max_hp, D1
-000034CA  6E00 0272                682      bgt         replay
-000034CE                           683  
-000034CE  4241                     684      clr         D1
-000034D0  1239 00004271            685      move.b      thief_health, D1
-000034D6  B27C 0000                686      cmp         #0, D1
-000034DA  6700 000E                687      beq         victory
-000034DE                           688      
-000034DE  B27C 000A                689      cmp         #thief_max_hp, D1
-000034E2  6E00 0042                690      bgt         failure
-000034E6                           691      
-000034E6  6600 FEE4                692      bne         combat
-000034EA                           693       
-000034EA                           694  
-000034EA                           695  *-------------------------------------------------------
-000034EA                           696  *---Flee (Combat)-------------------------------------
-000034EA                           697  *-------------------------------------------------------
-000034EA                           698  
-000034EA                           699  
-000034EA                           700  victory:
-000034EA  6100 021A                701      bsr         clear_screen
-000034EE  43F9 00003DC4            702      lea         victory_msg, A1
-000034F4  103C 000E                703      move.b      #14, D0
-000034F8  4E4F                     704      trap        #15
-000034FA  0639 000C 0000426D       705      add.b       #12, gold
-00003502  5239 0000426F            706      add.b       #1, water_flask
-00003508  5239 00004270            707      add.b       #1, honour
-0000350E                           708      
-0000350E                           709      ; reset enemy health
-0000350E  13FC 000A 00004271       710      move.b      #thief_max_hp, thief_health
-00003516                           711      
-00003516  6100 0248                712      bsr         endl
-0000351A  6100 0244                713      bsr         endl
-0000351E  6100 01F2                714      bsr         pause
-00003522  6100 FBEC                715      bsr         explore
-00003526                           716     
-00003526                           717     
-00003526                           718  *-------------------------------------------------------
-00003526                           719  *---Flee (Combat)-------------------------------------
-00003526                           720  *-------------------------------------------------------
-00003526                           721  
-00003526                           722  
-00003526                           723  failure:
-00003526  6100 01DE                724      bsr         clear_screen
-0000352A  43F9 00003E36            725      lea         failure_msg, A1
-00003530  103C 000E                726      move.b      #14, D0
-00003534  4E4F                     727      trap        #15
-00003536                           728      
-00003536  6100 0228                729      bsr         endl
-0000353A  6100 0224                730      bsr         endl
-0000353E  6100 01D2                731      bsr         pause
-00003542  6100 0152                732      bsr         hud
-00003546                           733      
-00003546                           734      
-00003546                           735  *-------------------------------------------------------
-00003546                           736  *---Flee (Combat)-------------------------------------
-00003546                           737  *-------------------------------------------------------
-00003546                           738  
-00003546                           739  
-00003546                           740  flee:
-00003546  6100 01BE                741      bsr         clear_screen
-0000354A  43F9 00003D93            742      lea         flee_msg, A1
-00003550  103C 000E                743      move.b      #14, D0
-00003554  4E4F                     744      trap        #15
-00003556                           745      
-00003556  6100 0208                746      bsr         endl
-0000355A  6100 0204                747      bsr         endl
-0000355E  6100 01B2                748      bsr         pause
-00003562                           749      
-00003562  4241                     750      clr         D1
-00003564  1239 00004270            751      move.b      honour, D1
-0000356A  B27C 0000                752      cmp         #0, D1
-0000356E  6700 FBA0                753      beq         explore
-00003572                           754      
-00003572  5339 00004270            755      sub.b       #1, honour
-00003578                           756      
-00003578  6100 FB96                757      bsr         explore
-0000357C                           758  
-0000357C                           759  
-0000357C                           760  *-------------------------------------------------------
-0000357C                           761  *---Game Play (Exploration)-----------------------------
-0000357C                           762  *-------------------------------------------------------
-0000357C                           763  
-0000357C                           764  
-0000357C                           765  display_stats:
-0000357C                           766      ; display health message and player's current health
-0000357C  6100 0188                767      bsr         clear_screen
-00003580  43F9 00003B6C            768      lea         health_msg, A1
-00003586  103C 000E                769      move.b      #14, D0
-0000358A  4E4F                     770      trap        #15
-0000358C                           771      
-0000358C  4241                     772      clr         D1
-0000358E  1239 0000426A            773      move.b      health, D1
-00003594  103C 0003                774      move.b      #3, D0
-00003598  4E4F                     775      trap        #15
-0000359A  6100 01C4                776      bsr         endl
-0000359E  6100 01C0                777      bsr         endl
-000035A2                           778  
-000035A2                           779      ; display stamina message and player's current stamina
-000035A2  43F9 00003B75            780      lea         stamina_msg, A1
-000035A8  103C 000E                781      move.b      #14, D0
-000035AC  4E4F                     782      trap        #15
-000035AE                           783      
-000035AE  4241                     784      clr         D1
-000035B0  1239 0000426B            785      move.b      stamina, D1
-000035B6  103C 0003                786      move.b      #3, D0
-000035BA  4E4F                     787      trap        #15
-000035BC  6100 01A2                788      bsr         endl
-000035C0  6100 019E                789      bsr         endl
-000035C4                           790      
-000035C4                           791      ; display steps message and steps taken by player
-000035C4  43F9 00003B7F            792      lea         steps_msg, A1
-000035CA  103C 000E                793      move.b      #14, D0
-000035CE  4E4F                     794      trap        #15
-000035D0                           795      
-000035D0  4241                     796      clr         D1
-000035D2  1239 0000426C            797      move.b      steps, D1
-000035D8  103C 0003                798      move.b      #3, D0
-000035DC  4E4F                     799      trap        #15
-000035DE  6100 0180                800      bsr         endl
-000035E2  6100 017C                801      bsr         endl
-000035E6                           802      
-000035E6                           803      ; display gold message and player's current gold value
-000035E6  43F9 00003C24            804      lea         gold_msg, A1
-000035EC  103C 000E                805      move.b      #14, D0
-000035F0  4E4F                     806      trap        #15
-000035F2                           807      
-000035F2  4241                     808      clr         D1
-000035F4  1239 0000426D            809      move.b      gold, D1
-000035FA  103C 0003                810      move.b      #3, D0
-000035FE  4E4F                     811      trap        #15
-00003600                           812      
-00003600  4241                     813      clr         D1
-00003602  123C 0067                814      move.b      #103, D1
-00003606  103C 0006                815      move.b      #6, D0
-0000360A  4E4F                     816      trap        #15
-0000360C  6100 0152                817      bsr         endl
-00003610  6100 014E                818      bsr         endl
-00003614                           819      
-00003614                           820      ; display honour message and current honour the player has
-00003614  43F9 00003B8D            821      lea         honour_msg, A1
-0000361A  103C 000E                822      move.b      #14, D0
-0000361E  4E4F                     823      trap        #15
-00003620                           824      
-00003620  4241                     825      clr         D1
-00003622  1239 00004270            826      move.b      honour, D1
-00003628  103C 0003                827      move.b      #3, D0
-0000362C  4E4F                     828      trap        #15
-0000362E  6100 0130                829      bsr         endl
-00003632  6100 012C                830      bsr         endl
-00003636                           831      
-00003636  6100 00DA                832      bsr         pause
-0000363A  6100 00CA                833      bsr         clear_screen
-0000363E  6100 FB18                834      bsr         status
-00003642                           835      
-00003642                           836  
-00003642                           837  *-------------------------------------------------------
-00003642                           838  *---Game Play (Exploration)-----------------------------
-00003642                           839  *-------------------------------------------------------
-00003642                           840  
-00003642                           841  inventory:
-00003642                           842      ; display water flasks message and current water flasks the player has
-00003642  6100 00C2                843      bsr         clear_screen
-00003646  43F9 00003B96            844      lea         water_flask_msg, A1
-0000364C  103C 000E                845      move.b      #14, D0
-00003650  4E4F                     846      trap        #15
-00003652                           847      
-00003652  4241                     848      clr         D1
-00003654  1239 0000426F            849      move.b      water_flask, D1
-0000365A  103C 0003                850      move.b      #3, D0
-0000365E  4E4F                     851      trap        #15
-00003660  6100 00FE                852      bsr         endl
-00003664  6100 00FA                853      bsr         endl
-00003668                           854          
-00003668                           855      ; display weapon message and the damage of the player's damage
-00003668  43F9 00003BA5            856      lea         weapon_msg, A1
-0000366E  103C 000E                857      move.b      #14, D0
-00003672  4E4F                     858      trap        #15
-00003674                           859      
-00003674  4241                     860      clr         D1
-00003676  1239 0000426E            861      move.b      damage, D1
-0000367C  103C 0003                862      move.b      #3, D0
-00003680  4E4F                     863      trap        #15
-00003682  6100 00DC                864      bsr         endl
-00003686  6100 00D8                865      bsr         endl
-0000368A                           866      
-0000368A  6100 0086                867      bsr         pause
-0000368E  6100 0076                868      bsr         clear_screen
-00003692  6100 FAC4                869      bsr         status
-00003696                           870      
-00003696                           871      
-00003696                           872  *-------------------------------------------------------
-00003696                           873  *-----------------Heads Up Display (Munny)--------------
-00003696                           874  * Retrieves the score from memory location
-00003696                           875  *-------------------------------------------------------  
-00003696                           876  
-00003696                           877   
-00003696                           878  hud:
-00003696                           879  
-00003696  6100 00C8                880      bsr     endl
-0000369A  6100 004C                881      bsr     decorate
-0000369E  43F9 00003B48            882      lea     hud_msg,A1
-000036A4  103C 000E                883      move.b  #14,D0
-000036A8  4E4F                     884      trap    #15
-000036AA  1213                     885      move.b  (A3),D1     retrieve the value A3 point to and move to D1
-000036AC  103C 0003                886      move.b  #3,D0       move literal 3 to D0
-000036B0  4E4F                     887      trap    #15         intrepret value in D0, which 3 which displays D1
-000036B2  6100 0034                888      bsr     decorate
-000036B6  4E75                     889      rts
-000036B8                           890  
-000036B8                           891  
-000036B8                           892  *-------------------------------------------------------
-000036B8                           893  *-----------------------Being Attacked------------------
-000036B8                           894  * This could be used for collision detection
-000036B8                           895  *-------------------------------------------------------
-000036B8                           896  
-000036B8                           897  
-000036B8                           898  
-000036B8                           899  collision_hit:
-000036B8                           900      *hit
-000036B8  43F9 00003B0A            901      lea     hit_msg,A1
-000036BE  303C 000E                902      move    #14,D0
-000036C2  4E4F                     903      trap    #15
-000036C4  4E75                     904      rts
-000036C6                           905      
-000036C6                           906  collision_miss:
-000036C6                           907      *miss
-000036C6  43F9 00003B12            908      lea     miss_msg,A1
-000036CC  303C 000E                909      move    #14,D0
-000036D0  4E4F                     910      trap    #15
-000036D2  4E75                     911      rts
-000036D4                           912  
-000036D4                           913  
-000036D4                           914  *-------------------------------------------------------
-000036D4                           915  *--------------------------Loop-------------------------
-000036D4                           916  *-------------------------------------------------------
-000036D4                           917  
-000036D4                           918  
-000036D4                           919  loop:
-000036D4  163C 0005                920      move.b  #5, D3 loop counter D3=5
-000036D8                           921  next:
-000036D8  43F9 00003B18            922      lea     loop_msg,A1
-000036DE  103C 000E                923      move.b  #14,D0
-000036E2  4E4F                     924      trap    #15
-000036E4  5343                     925      sub     #1,D3   decrement loop counter
-000036E6  66F0                     926      bne     next    repeat until D0=0
-000036E8                           927  
-000036E8                           928  
-000036E8                           929  *-------------------------------------------------------
-000036E8                           930  *------------------Screen Decoration--------------------
-000036E8                           931  *-------------------------------------------------------
-000036E8                           932  
-000036E8                           933  
-000036E8                           934  decorate:
-000036E8  163C 003C                935      move.b  #60, D3
-000036EC  6100 0072                936      bsr     endl
-000036F0                           937  out:
-000036F0  43F9 00003B18            938      lea     loop_msg,A1
-000036F6  103C 000E                939      move.b  #14,D0
-000036FA  4E4F                     940      trap    #15
-000036FC  5343                     941      sub     #1,D3   decrement loop counter
-000036FE  66F0                     942      bne     out     repeat until D0=0
-00003700  6100 005E                943      bsr     endl
-00003704  4E75                     944      rts
-00003706                           945      
-00003706                           946  clear_screen: 
-00003706  103C 000B                947      move.b  #11,D0      clear screen
-0000370A  323C FF00                948      move.w  #$ff00,D1
-0000370E  4E4F                     949      trap    #15
-00003710  4E75                     950      rts
-00003712                           951      
-00003712                           952  pause:
-00003712  43F9 00003B51            953      lea     pause_msg, A1
-00003718  103C 000E                954      move.b  #14, D0
-0000371C  4E4F                     955      trap    #15
-0000371E                           956      
-0000371E  103C 0004                957      move.b  #4, D0
-00003722  4E4F                     958      trap    #15
-00003724  4E75                     959      rts
-00003726                           960      
-00003726                           961  explore_start:
-00003726  43F9 0000399B            962      lea     explore_start_msg, A1
-0000372C  103C 000E                963      move.b  #14, D0
-00003730  4E4F                     964      trap    #15
-00003732  6100 002C                965      bsr     endl
-00003736  61DA                     966      bsr     pause
-00003738  61CC                     967      bsr     clear_screen
-0000373A  6100 F9D4                968      bsr     explore
-0000373E                           969      
-0000373E                           970      
-0000373E                           971  *-------------------------------------------------------
-0000373E                           972  *------------------------Replay-------------------------
-0000373E                           973  *-------------------------------------------------------
-0000373E                           974  
-0000373E                           975  
-0000373E                           976  replay:
-0000373E  6100 0020                977      bsr     endl
-00003742  43F9 00003B1A            978      lea     replay_msg,A1
-00003748  103C 000E                979      move.b  #14,D0
-0000374C  4E4F                     980      trap    #15
-0000374E                           981      
-0000374E  103C 0004                982      move.b  #4,D0
-00003752  4E4F                     983      trap    #15
-00003754                           984  
-00003754  B27C 0000                985      cmp     #exit,D1
-00003758  6700 F8AC                986      beq     end         if SR Z register contains 1 beq => Branch Equals
-0000375C  6100 F8CA                987      bsr     gameloop
-00003760                           988  
-00003760                           989  endl:
-00003760  48E7 8040                990      movem.l D0/A1,-(A7)
-00003764  303C 000E                991      move    #14,D0
-00003768  43F9 00003776            992      lea     crlf,A1
-0000376E  4E4F                     993      trap    #15
-00003770  4CDF 0201                994      movem.l (A7)+,D0/A1
-00003774  4E75                     995      rts
-00003776                           996      
-00003776                           997      
-00003776                           998  *-------------------------------------------------------
-00003776                           999  *-------------------Data Delarations--------------------
-00003776                          1000  *-------------------------------------------------------
-00003776                          1001  
-00003776                          1002  
-00003776                          1003  
-00003776= 0D 0A 00                1004  crlf:                 dc.b    $0D,$0A,0
-00003779= 2A 2A 2A 2A 2A 2A ...   1005  welcome_msg:          dc.b    '************************************************************'
-000037B5= 0D 0A                   1006                        dc.b    $0D,$0A
-000037B7= 41 76 61 6C 6F 6E ...   1007                        dc.b    'Avalon: The Mysterious Foe'
-000037D1= 0D 0A                   1008                        dc.b    $0D,$0A
-000037D3= 2A 2A 2A 2A 2A 2A ...   1009                        dc.b    '************************************************************'
-0000380F= 0D 0A 00                1010                        dc.b    $0D,$0A,0
-00003812                          1011  
-00003812= 46 65 65 64 20 6C ...   1012  potion_msg:           dc.b    'Feed load (each horse needs at least 100 units of feed)'
-00003849= 0D 0A                   1013                        dc.b    $0D,$0A
-0000384B= 45 6E 74 65 72 20 ...   1014                        dc.b    'Enter feed load : ',0
-0000385E= 4E 75 6D 62 65 72 ...   1015  potions_msg:          dc.b    'Number of potions : ',0
-00003873= 45 61 63 68 20 71 ...   1016  weapons_msg:          dc.b    'Each quest need at least 2 Weapons'
-00003895= 0D 0A                   1017                        dc.b    $0D,$0A
-00003897= 6D 69 6E 69 6D 75 ...   1018                        dc.b    'minimum requirement is 2 i.e. Sword x 1 and Speer x 1.'
-000038CD= 0D 0A                   1019                        dc.b    $0D,$0A
-000038CF= 45 6E 74 65 72 20 ...   1020                        dc.b    'Enter # of weapons : ',0
-000038E5= 56 69 6C 6C 61 67 ...   1021  gameplay_msg:         dc.b    'Village',0
-000038ED= 79 6F 75 20 65 6E ...   1022  village_msg:          dc.b    'you enter the village square.'
-0000390A= 0D 0A                   1023                        dc.b    $0D,$0A
-0000390C= 57 68 61 74 20 64 ...   1024                        dc.b    'What do you do?'
-0000391B= 0D 0A                   1025                        dc.b    $0D,$0A
-0000391D= 31 2E 20 45 78 70 ...   1026                        dc.b    '1. Explore the lands'
-00003931= 0D 0A 00                1027                        dc.b    $0D,$0A,0
-00003934= 79 6F 75 20 72 65 ...   1028  return_msg:           dc.b    'you return to the village square.'
-00003955= 0D 0A                   1029                        dc.b    $0D,$0A
-00003957= 57 68 61 74 20 64 ...   1030                        dc.b    'What do you do?'
-00003966= 0D 0A                   1031                        dc.b    $0D,$0A
-00003968= 31 2E 20 65 78 70 ...   1032                        dc.b    '1. explore the lands'
-0000397C= 0D 0A                   1033                        dc.b    $0D,$0A
-0000397E= 32 2E 20 53 65 61 ...   1034                        dc.b    '2. Search for the murderer'
-00003998= 0D 0A 00                1035                        dc.b    $0D,$0A,0
-0000399B= 59 6F 75 20 6C 65 ...   1036  explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
-000039C7= 31 2E 20 54 72 61 ...   1037  travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
-000039E4= 0D 0A                   1038                        dc.b    $0D,$0A
-000039E6= 0D 0A                   1039                        dc.b    $0D,$0A
-000039E8= 32 2E 20 53 65 74 ...   1040                        dc.b    '2. Setup camp(restore stamina)'
-00003A06= 0D 0A                   1041                        dc.b    $0D,$0A
-00003A08= 0D 0A                   1042                        dc.b    $0D,$0A
-00003A0A= 33 2E 20 56 69 65 ...   1043                        dc.b    '3. View player status'
-00003A1F= 0D 0A                   1044                        dc.b    $0D,$0A
-00003A21= 0D 0A                   1045                        dc.b    $0D,$0A
-00003A23= 34 2E 20 52 65 74 ...   1046                        dc.b    '4. Return to the village.'
-00003A3C= 0D 0A                   1047                        dc.b    $0D,$0A
-00003A3E= 0D 0A 00                1048                        dc.b    $0D,$0A,0
-00003A41= 2A 2D 2D 2D 2D 2D ...   1049  status_msg:           dc.b    '*--------*'
-00003A4B= 0D 0A                   1050                        dc.b    $0D, $0A
-00003A4D= 7C 20 53 74 61 74 ...   1051                        dc.b    '| Status |'
-00003A57= 0D 0A                   1052                        dc.b    $0D, $0A
-00003A59= 2A 2D 2D 2D 2D 2D ...   1053                        dc.b    '*--------*'
-00003A63= 0D 0A                   1054                        dc.b    $0D, $0A
-00003A65= 0D 0A                   1055                        dc.b    $0D, $0A
-00003A67= 0D 0A                   1056                        dc.b    $0D, $0A
-00003A69= 31 2E 20 64 69 73 ...   1057                        dc.b    '1. display inventory'
-00003A7D= 0D 0A                   1058                        dc.b    $0D,$0A
-00003A7F= 0D 0A                   1059                        dc.b    $0D,$0A
-00003A81= 32 2E 20 76 69 65 ...   1060                        dc.b    '2. view player stats'
-00003A95= 0D 0A                   1061                        dc.b    $0D,$0A
-00003A97= 0D 0A                   1062                        dc.b    $0D,$0A
-00003A99= 33 2E 20 52 65 74 ...   1063                        dc.b    '3. Return to explore'
-00003AAD= 0D 0A                   1064                        dc.b    $0D,$0A
-00003AAF= 0D 0A 00                1065                        dc.b    $0D,$0A,0
-00003AB2= 79 6F 75 20 77 61 ...   1066  move_msg:             dc.b    'you walk for 1 minute!'
-00003AC8= 0D 0A                   1067                        dc.b    $0D,$0A
-00003ACA= 3C 3D 3D 20 73 74 ...   1068                        dc.b    '<== stamina decreased by 1! ==>',0
-00003AEA= 55 70 64 61 74 65 ...   1069  update_msg:           dc.b    'Update Gameplay !',0
-00003AFC= 44 72 61 77 20 53 ...   1070  draw_msg:             dc.b    'Draw Screen !',0
-00003B0A= 53 74 72 69 6B 65 ...   1071  hit_msg:              dc.b    'Strike!',0
-00003B12= 4D 69 73 73 21 00       1072  miss_msg:             dc.b    'Miss!',0
-00003B18= 2E 00                   1073  loop_msg:             dc.b    '.',0
-00003B1A= 45 6E 74 65 72 20 ...   1074  replay_msg:           dc.b    'Enter 0 to Quit any other number to replay : ',0
-00003B48= 53 63 6F 72 65 20 ...   1075  hud_msg:              dc.b    'Score : ',0
-00003B51= 50 72 65 73 73 20 ...   1076  pause_msg:            dc.b    'Press Enter to continue...',0
-00003B6C= 48 65 61 6C 74 68 ...   1077  health_msg:           dc.b    'Health: ',0
-00003B75= 53 74 61 6D 69 6E ...   1078  stamina_msg:          dc.b    'Stamina: ',0
-00003B7F= 53 74 65 70 73 20 ...   1079  steps_msg:            dc.b    'Steps Taken: ',0
-00003B8D= 48 6F 6E 6F 75 72 ...   1080  honour_msg:           dc.b    'Honour: ',0
-00003B96= 57 61 74 65 72 20 ...   1081  water_flask_msg:      dc.b    'Water Flasks: ',0
-00003BA5= 57 65 61 70 6F 6E ...   1082  weapon_msg:           dc.b    'Weapon Damage: ',0
-00003BB5= 41 66 74 65 72 20 ...   1083  treasure_msg:         dc.b    'After walking for a while, you stumble upon a small satchet.'
-00003BF1= 0D 0A                   1084                        dc.b    $0D,$0A
-00003BF3= 59 6F 75 20 73 65 ...   1085                        dc.b    'You search the satchet.'
-00003C0A= 0D 0A                   1086                        dc.b    $0D,$0A
-00003C0C= 0D 0A                   1087                        dc.b    $0D,$0A
-00003C0E= 3C 3D 3D 20 79 6F ...   1088                        dc.b    '<== you found 10g ==>',0
-00003C24= 47 6F 6C 64 3A 20 00    1089  gold_msg:             dc.b    'Gold: ',0
-00003C2B= 59 6F 75 20 61 72 ...   1090  stamina_lack_msg:     dc.b    'You are too tired to travel. rest up by setting up a camp!',0
-00003C66= 59 6F 75 20 73 65 ...   1091  camp_msg:             dc.b    'You setup a campfire and go to sleep.'
-00003C8B= 0D 0A                   1092                        dc.b    $0D,$0A
-00003C8D= 0D 0A                   1093                        dc.b    $0D,$0A
-00003C8F= 3C 3D 3D 20 53 74 ...   1094                        dc.b    '<== Stamina fully restored! ==>',0
-00003CAF= 57 68 69 6C 65 20 ...   1095  thief_msg:            dc.b    'While exploring the wilderness, you are attacked by a thief!'
-00003CEB= 0D 0A                   1096                        dc.b    $0D,$0A
-00003CED= 0D 0A                   1097                        dc.b    $0D,$0A
-00003CEF= 3C 3D 3D 20 43 6F ...   1098                        dc.b    '<== Combat initiated! ==>',0
-00003D09= 0D 0A                   1099  combat_msg:           dc.b    $0D, $0A
-00003D0B= 0D 0A                   1100                        dc.b    $0D, $0A
-00003D0D= 0D 0A                   1101                        dc.b    $0D, $0A
-00003D0F= 31 2E 20 41 74 74 ...   1102                        dc.b    '1. Attack'
-00003D18= 0D 0A                   1103                        dc.b    $0D,$0A
-00003D1A= 0D 0A                   1104                        dc.b    $0D,$0A
-00003D1C= 32 2E 20 46 6C 65 65    1105                        dc.b   '2. Flee'
-00003D23= 0D 0A 00                1106                        dc.b    $0D,$0A,0
-00003D26= 50 6C 61 79 65 72 ...   1107  combat_hp_msg:        dc.b   'Player: ',0
-00003D2F= 54 68 69 65 66 3A ...   1108  thief_hp_msg:         dc.b   'Thief: ',0
-00003D37= 59 6F 75 20 61 74 ...   1109  attack_msg:           dc.b    'You attack your opponent!'
-00003D50= 0D 0A                   1110                        dc.b    $0D,$0A
-00003D52= 0D 0A                   1111                        dc.b    $0D,$0A
-00003D54= 3C 3D 3D 20 44 65 ...   1112                        dc.b    '<== Dealt ',0
-00003D5F= 59 6F 75 72 20 6F ...   1113  enemy_attack_msg:     dc.b    'Your opponent strikes back!'
-00003D7A= 0D 0A                   1114                        dc.b    $0D,$0A
-00003D7C= 0D 0A                   1115                        dc.b    $0D,$0A
-00003D7E= 3C 3D 3D 20 44 65 ...   1116                        dc.b    '<== Dealt ',0
-00003D89= 20 64 6D 67 21 20 ...   1117  dmg_msg:              dc.b    ' dmg! ==>',0
-00003D93= 59 6F 75 20 66 6C ...   1118  flee_msg:             dc.b    'You flee the scene!'
-00003DA6= 0D 0A                   1119                        dc.b    $0D,$0A
-00003DA8= 0D 0A                   1120                        dc.b    $0D,$0A
-00003DAA= 3C 3D 3D 20 79 6F ...   1121                        dc.b    '<== you lost 1 Honour ==>',0
-00003DC4= 3C 3D 3D 20 56 69 ...   1122  victory_msg:          dc.b    '<== Victory Achieved! ==>'
-00003DDD= 0D 0A                   1123                        dc.b    $0D,$0A
-00003DDF= 0D 0A                   1124                        dc.b    $0D,$0A
-00003DE1= 0D 0A                   1125                        dc.b    $0D,$0A
-00003DE3= 3C 3D 3D 20 4F 62 ...   1126                        dc.b    '<== Obtained 1 Honour ==>'
-00003DFC= 0D 0A                   1127                        dc.b    $0D,$0A
-00003DFE= 3C 3D 3D 20 4F 62 ...   1128                        dc.b    '<== Obtained 12g ==>'
-00003E12= 0D 0A                   1129                        dc.b    $0D,$0A
-00003E14= 3C 3D 3D 20 4F 62 ...   1130                        dc.b    '<== Obtained water flask x1 ==>'
-00003E33= 0D 0A 00                1131                        dc.b    $0D,$0A,0
-00003E36= 3C 3D 3D 20 59 6F ...   1132  failure_msg:          dc.b    '<== You Died! ==>',0
-00003E48= 41 73 20 79 6F 75 ...   1133  peddlar_enct_msg:     dc.b  'As you explore the land, you come across a wandering peddlar.'
-00003E85= 0D 0A                   1134                        dc.b  $0D, $0A
-00003E87= 0D 0A                   1135                        dc.b  $0D, $0A
-00003E89= 54 68 65 20 70 65 ...   1136                        dc.b  'The peddlar approaches you.'
-00003EA4= 0D 0A                   1137                        dc.b  $0D, $0A
-00003EA6= 0D 0A                   1138                        dc.b  $0D, $0A
-00003EA8= 50 65 64 64 6C 61 ...   1139                        dc.b  'Peddlar: Greetings! May I intrest you in my wares?'
-00003EDA= 0D 0A                   1140                        dc.b  $0D, $0A
-00003EDC= 0D 0A                   1141                        dc.b  $0D, $0A
-00003EDE= 0D 0A                   1142                        dc.b  $0D, $0A
-00003EE0= 31 2E 20 42 72 6F ...   1143                        dc.b  '1. Browse Wares'
-00003EEF= 0D 0A                   1144                        dc.b  $0D, $0A
-00003EF1= 0D 0A                   1145                        dc.b  $0D, $0A
-00003EF3= 32 2E 20 52 75 6D ...   1146                        dc.b  '2. Rumours'
-00003EFD= 0D 0A                   1147                        dc.b  $0D, $0A
-00003EFF= 0D 0A                   1148                        dc.b  $0D, $0A
-00003F01= 33 2E 20 4C 65 61 ...   1149                        dc.b  '3. Leave',0
-00003F0A= 2A 2D 2D 2D 2D 2D ...   1150  shop_msg:             dc.b  '*------*'
-00003F12= 0D 0A                   1151                        dc.b  $0D, $0A
-00003F14= 7C 20 53 68 6F 70 ...   1152                        dc.b  '| Shop |'
-00003F1C= 0D 0A                   1153                        dc.b  $0D, $0A
-00003F1E= 2A 2D 2D 2D 2D 2D ...   1154                        dc.b  '*------*'
-00003F26= 0D 0A                   1155                        dc.b  $0D, $0A
-00003F28= 0D 0A                   1156                        dc.b  $0D, $0A
-00003F2A= 0D 0A                   1157                        dc.b  $0D, $0A
-00003F2C= 31 2E 20 57 61 74 ...   1158                        dc.b  '1. Water Flask                          10g'
-00003F57= 0D 0A                   1159                        dc.b  $0D, $0A
-00003F59= 32 2E 20 57 65 61 ...   1160                        dc.b  '2. Weapon Enchancement <+2dmg>     20g'
-00003F7C= 0D 0A                   1161                        dc.b  $0D, $0A
-00003F7E= 0D 0A                   1162                        dc.b  $0D, $0A
-00003F80= 0D 0A                   1163                        dc.b  $0D, $0A
-00003F82= 33 2E 20 52 65 74 ...   1164                        dc.b  '3. Return'
-00003F8B= 0D 0A                   1165                        dc.b  $0D, $0A
-00003F8D= 0D 0A 00                1166                        dc.b  $0D, $0A,0
-00003F90= 59 6F 75 20 61 73 ...   1167  rumour_msg:           dc.b  'You ask the peddlar for rumours.'
-00003FB0= 0D 0A                   1168                        dc.b  $0D, $0A
-00003FB2= 0D 0A                   1169                        dc.b  $0D, $0A
-00003FB4= 0D 0A                   1170                        dc.b  $0D, $0A
-00003FB6= 50 65 64 64 6C 61 ...   1171                        dc.b  'Peddlar: Rumours? Well it is said that there is a murderer on the loose.'
-00003FFE= 0D 0A                   1172                        dc.b  $0D, $0A
-00004000= 0D 0A                   1173                        dc.b  $0D, $0A
-00004002= 50 65 64 64 6C 61 ...   1174                        dc.b  'Peddlar: Apparently, he was last seen in the village.'
-00004037= 0D 0A                   1175                        dc.b  $0D, $0A
-00004039= 0D 0A                   1176                        dc.b  $0D, $0A
-0000403B= 50 65 64 64 6C 61 ...   1177                        dc.b  'Peddlar: The Bounty for getting rid of this guy is preeety high.'
-0000407B= 0D 0A                   1178                        dc.b  $0D, $0A
-0000407D= 0D 0A                   1179                        dc.b  $0D, $0A
-0000407F= 0D 0A                   1180                        dc.b  $0D, $0A
-00004081= 3C 3D 3D 20 53 74 ...   1181                        dc.b  '<== Started "Eliminate the Murderer" Quest ==>',0
-000040B0= 4E 6F 74 20 65 6E ...   1182  no_gold_msg:          dc.b  'Not enough gold!',0
-000040C1= 3C 3D 3D 20 59 6F ...   1183  water_gained_msg:     dc.b  '<== You Bought a Water Flask! ==>',0
-000040E3= 3C 3D 3D 20 59 6F ...   1184  upgrade_gained_msg:   dc.b  '<== You Upgraded your weapon by 2dmg! ==>',0
-0000410D= 59 6F 75 20 61 73 ...   1185  quest_active_msg:     dc.b  'You ask the peddlar for more rumours.'
-00004132= 0D 0A                   1186                        dc.b  $0D, $0A
-00004134= 0D 0A                   1187                        dc.b  $0D, $0A
-00004136= 0D 0A                   1188                        dc.b  $0D, $0A
-00004138= 50 65 64 64 6C 61 ...   1189                        dc.b  'Peddlar: Rumours? nothing new I''m afraid...',0
-00004164= 59 6F 75 20 73 68 ...   1190  cannot_return_msg:    dc.b  'You should find some information regarding the dissappearances first!',0
-000041AA= 59 6F 75 20 62 65 ...   1191  search_msg:           dc.b  'You begin searching for the murderer.'
-000041CF= 0D 0A                   1192                        dc.b    $0D,$0A
-000041D1= 0D 0A                   1193                        dc.b    $0D,$0A
-000041D3= 61 66 74 65 72 20 ...   1194                        dc.b  'after Countless hours, you find a secret passage leading to a dark room'
-0000421A= 0D 0A                   1195                        dc.b    $0D,$0A
-0000421C= 0D 0A                   1196                        dc.b    $0D,$0A
-0000421E= 49 6E 20 74 68 65 ...   1197                        dc.b  'In the room, a shrouded figure attacks you!'
-00004249= 0D 0A                   1198                        dc.b    $0D,$0A
-0000424B= 0D 0A                   1199                        dc.b    $0D,$0A
-0000424D= 0D 0A                   1200                        dc.b    $0D,$0A
-0000424F= 3C 3D 3D 20 43 6F ...   1201                        dc.b  '<== Combat Initiated! ==>',0
-00004269                          1202  
-00004269                          1203  
-00004269                          1204  murder_quest:   ds.b    1
-0000426A                          1205  
-0000426A                          1206  ; player stats
-0000426A                          1207  health:         ds.b    1
-0000426B                          1208  stamina:        ds.b    1
-0000426C                          1209  steps:          ds.b    1
-0000426D                          1210  gold:           ds.b    1
-0000426E                          1211  damage:         ds.b    1
-0000426F                          1212  water_flask:    ds.b    1
-00004270                          1213  honour:         ds.b    1
-00004271                          1214  
-00004271                          1215  
-00004271                          1216  ; enemy stats
-00004271                          1217  
-00004271                          1218  ; thief
-00004271                          1219  thief_health:   ds.b    1
-00004272                          1220  thief_dmg:      ds.b    1
-00004273                          1221  
-00004273                          1222      end start
+00003000                            80  
+00003000                            81  *-------------------------------------------------------
+00003000                            82  *-------------------Game Subroutine---------------------
+00003000                            83  *-------------------------------------------------------
+00003000                            84  
+00003000                            85  
+00003000                            86  game:
+00003000  6100 0048                 87      bsr     gameloop   branch to gameloop subroutine
+00003004  4E75                      88      rts                return from game: subroutine
+00003006                            89            
+00003006                            90  
+00003006                            91  
+00003006                            92  
+00003006                            93  *-------------------------------------------------------
+00003006                            94  *-------------------Welcome Subroutine------------------
+00003006                            95  *-------------------------------------------------------
+00003006                            96  
+00003006                            97  
+00003006                            98  welcome:
+00003006  6100 0A36                 99      bsr     endl            branch to endl subroutine
+0000300A  43F9 00003A7F            100      lea     welcome_msg,A1  assign message to address register A1
+00003010  103C 000E                101      move.b  #14,D0          move literal 14 to DO
+00003014  4E4F                     102      trap    #15             trap and interpret value in D0
+00003016  6100 0A26                103      bsr     endl            branch to endl subroutine
+0000301A  6100 0A22                104      bsr     endl
+0000301E  6100 09D2                105      bsr     pause
+00003022                           106      
+00003022  6100 09C2                107      bsr     clear_screen
+00003026  43F9 00003B18            108      lea     prologue, A1
+0000302C  103C 000E                109      move.b  #14, D0
+00003030  4E4F                     110      trap    #15
+00003032  6100 0A0A                111      bsr     endl
+00003036  6100 0A06                112      bsr     endl
+0000303A  6100 09B6                113      bsr     pause
+0000303E  6100 00B6                114      bsr     gameplay
+00003042                           115      
+00003042                           116  
+00003042                           117  
+00003042                           118  *-------------------------------------------------------
+00003042                           119  *---------Gameplay Input Values Subroutine--------------
+00003042                           120  *------------------------------------------------------- 
+00003042                           121  
+00003042                           122     
+00003042                           123  input:
+00003042  103C 0004                124      move.b  #4, D0
+00003046  4E4F                     125      trap    #15
+00003048  4E75                     126      rts
+0000304A                           127     
+0000304A                           128      
+0000304A                           129  *-------------------------------------------------------
+0000304A                           130  *----------------Gameloop (main loop)-------------------
+0000304A                           131  *------------------------------------------------------- 
+0000304A                           132  
+0000304A                           133  
+0000304A                           134  gameloop:
+0000304A  6100 0028                135      bsr     update          branch to update game subroutine 
+0000304E  6100 0996                136      bsr     clear_screen    clears the screen         
+00003052  6100 003A                137      bsr     draw            branch to draw screen subroutine
+00003056  6100 098E                138      bsr     clear_screen    clears the screen
+0000305A  6100 009A                139      bsr     gameplay        branch to gameplay subroutine
+0000305E  6100 0986                140      bsr     clear_screen    clears the screen
+00003062  6100 0912                141      bsr     hud             branch to display HUD subroutine
+00003066  6100 097E                142      bsr     clear_screen    clears the screen
+0000306A  6100 09B4                143      bsr     replay          branch to replay game subroutine
+0000306E  6100 0976                144      bsr     clear_screen    clears the screen
+00003072  4E75                     145      rts                     return from gameloop: subroutine
+00003074                           146  
+00003074                           147  
+00003074                           148  *-------------------------------------------------------
+00003074                           149  *----------------Update Quest Progress------------------
+00003074                           150  *  Complete Quest
+00003074                           151  *------------------------------------------------------- 
+00003074                           152  
+00003074                           153  
+00003074                           154  update:
+00003074  6100 09C8                155      bsr     endl            print a CR and LF
+00003078  6100 094E                156      bsr     decorate        decorate with dots using a loop
+0000307C  43F9 00003F72            157      lea     update_msg,A1   
+00003082  103C 000E                158      move.b  #14,D0
+00003086  4E4F                     159      trap    #15
+00003088  6100 093E                160      bsr     decorate
+0000308C  4E75                     161      rts
+0000308E                           162      
+0000308E                           163      
+0000308E                           164  *-------------------------------------------------------
+0000308E                           165  *-----------------Draw Quest Updates--------------------
+0000308E                           166  * Draw the game progress information, status regarding
+0000308E                           167  * quest
+0000308E                           168  *------------------------------------------------------- 
+0000308E                           169  
+0000308E                           170  
+0000308E                           171  draw:
+0000308E  6100 09AE                172      bsr     endl
+00003092  6100 0934                173      bsr     decorate
+00003096  43F9 00003F84            174      lea     draw_msg,A1
+0000309C  103C 000E                175      move.b  #14,D0
+000030A0  4E4F                     176      trap    #15
+000030A2  6100 0924                177      bsr     decorate
+000030A6  4E75                     178      rts
+000030A8                           179      
+000030A8                           180      
+000030A8                           181  *-------------------------------------------------------
+000030A8                           182  *------------------------Potions------------------------
+000030A8                           183  * Input the ingredients for each potion. Ingredients costs 
+000030A8                           184  * money. For an advanced mark you need to manage this 
+000030A8                           185  * resource
+000030A8                           186  *------------------------------------------------------- 
+000030A8                           187  
+000030A8                           188  
+000030A8                           189  feed:
+000030A8  6100 0994                190      bsr     endl
+000030AC  6100 091A                191      bsr     decorate
+000030B0  43F9 00003C65            192      lea     potion_msg,A1
+000030B6  103C 000E                193      move.b  #14,D0
+000030BA  4E4F                     194      trap    #15
+000030BC  6100 090A                195      bsr     decorate
+000030C0  4E75                     196      rts
+000030C2                           197  
+000030C2                           198  
+000030C2                           199  *-------------------------------------------------------
+000030C2                           200  *--------------------Potions Inventory---------------------
+000030C2                           201  * Number of potions to be used in a Quest 
+000030C2                           202  *-------------------------------------------------------
+000030C2                           203  
+000030C2                           204   
+000030C2                           205  potions:
+000030C2  6100 097A                206      bsr     endl
+000030C6  6100 0900                207      bsr     decorate
+000030CA  43F9 00003CB1            208      lea     potions_msg,A1
+000030D0  103C 000E                209      move.b  #14,D0
+000030D4  4E4F                     210      trap    #15
+000030D6  6100 08F0                211      bsr     decorate
+000030DA  4E75                     212      rts
+000030DC                           213  
+000030DC                           214  
+000030DC                           215  *-------------------------------------------------------
+000030DC                           216  *-------------------------Weapons-----------------------
+000030DC                           217  * Number of weapons
+000030DC                           218  *------------------------------------------------------- 
+000030DC                           219  
+000030DC                           220    
+000030DC                           221  weapons:
+000030DC  6100 0960                222      bsr     endl
+000030E0  6100 08E6                223      bsr     decorate
+000030E4  43F9 00003CC6            224      lea     weapons_msg,A1
+000030EA  103C 000E                225      move.b  #14,D0
+000030EE  4E4F                     226      trap    #15
+000030F0  6100 08D6                227      bsr     decorate
+000030F4  4E75                     228      rts
+000030F6                           229  
+000030F6                           230  
+000030F6                           231  *-------------------------------------------------------
+000030F6                           232  *---Game Play (Quest Progress)--------------------------
+000030F6                           233  *------------------------------------------------------- 
+000030F6                           234  
+000030F6                           235  
+000030F6                           236  gameplay:
+000030F6  6100 08EE                237      bsr     clear_screen
+000030FA  6100 08CC                238      bsr     decorate
+000030FE  43F9 00003D38            239      lea     gameplay_msg, A1
+00003104  103C 000E                240      move.b  #14,D0
+00003108  4E4F                     241      trap    #15
+0000310A  6100 08BC                242      bsr     decorate
+0000310E  6100 08E2                243      bsr     pause
+00003112  6100 08D2                244      bsr     clear_screen
+00003116  43F9 00003D40            245      lea     village_msg, A1
+0000311C  103C 000E                246      move.b  #14,D0
+00003120  4E4F                     247      trap    #15
+00003122  6100 FF1E                248      bsr     input
+00003126                           249      
+00003126  B27C 0001                250      cmp     #1, D1
+0000312A  6700 08DA                251      beq     explore_start
+0000312E  6100 08B6                252      bsr     clear_screen
+00003132  66C2                     253      bne     gameplay
+00003134                           254  
+00003134                           255  
+00003134                           256  *-------------------------------------------------------
+00003134                           257  *---Game Play (Exploration)-----------------------------
+00003134                           258  *-------------------------------------------------------
+00003134                           259  
+00003134                           260  
+00003134                           261  explore:
+00003134  6100 08B0                262      bsr     clear_screen
+00003138  43F9 00003E4F            263      lea     travel_msg, A1
+0000313E  103C 000E                264      move.b  #14, D0
+00003142  4E4F                     265      trap    #15
+00003144                           266      
+00003144  6100 FEFC                267      bsr     input
+00003148                           268      
+00003148  B27C 0002                269      cmp     #2, D1
+0000314C  6700 007A                270      beq     camp
+00003150                           271      
+00003150  B27C 0003                272      cmp     #3, D1
+00003154  6700 0026                273      beq     status
+00003158                           274      
+00003158  B27C 0004                275      cmp     #4, D1
+0000315C  6700 00EA                276      beq     return
+00003160                           277      
+00003160  1439 0000494A            278      move.b  stamina, D2
+00003166  B47C 0000                279      cmp     #0, D2
+0000316A  6700 003C                280      beq     stamina_lack
+0000316E                           281      
+0000316E  B27C 0001                282      cmp     #1, D1
+00003172  6700 007C                283      beq     movement
+00003176                           284      
+00003176  6100 086E                285      bsr     clear_screen
+0000317A  66B8                     286      bne     explore
+0000317C                           287  
+0000317C                           288  
+0000317C                           289  *-------------------------------------------------------
+0000317C                           290  *---Game Play (Exploration)-----------------------------
+0000317C                           291  *-------------------------------------------------------
+0000317C                           292  
+0000317C                           293  
+0000317C                           294  status:
+0000317C  6100 0868                295      bsr     clear_screen
+00003180  43F9 00003EC9            296      lea     status_msg, A1
+00003186  103C 000E                297      move.b  #14, D0
+0000318A  4E4F                     298      trap    #15
+0000318C                           299      
+0000318C  6100 FEB4                300      bsr     input
+00003190                           301      
+00003190  B27C 0001                302      cmp     #1, D1
+00003194  6700 078C                303      beq     inventory
+00003198                           304      
+00003198  B27C 0002                305      cmp     #2, D1
+0000319C  6700 06BE                306      beq     display_stats
+000031A0                           307      
+000031A0  B27C 0003                308      cmp     #3, D1
+000031A4  678E                     309      beq     explore
+000031A6                           310      
+000031A6  66D4                     311      bne     status
+000031A8                           312      
+000031A8                           313  
+000031A8                           314  *-------------------------------------------------------
+000031A8                           315  *---Game Play (Exploration)-----------------------------
+000031A8                           316  *-------------------------------------------------------
+000031A8                           317  
+000031A8                           318  
+000031A8                           319  stamina_lack:
+000031A8  6100 083C                320      bsr     clear_screen
+000031AC  43F9 000040B3            321      lea     stamina_lack_msg, A1
+000031B2  103C 000E                322      move.b  #14, D0
+000031B6  4E4F                     323      trap    #15
+000031B8  6100 0884                324      bsr     endl
+000031BC  6100 0880                325      bsr     endl
+000031C0                           326      
+000031C0  6100 0830                327      bsr     pause
+000031C4  6100 FF6E                328      bsr     explore
+000031C8                           329      
+000031C8                           330  
+000031C8                           331  *-------------------------------------------------------
+000031C8                           332  *---Game Play (Exploration)-----------------------------
+000031C8                           333  *-------------------------------------------------------
+000031C8                           334  
+000031C8                           335  
+000031C8                           336  camp:
+000031C8  6100 081C                337      bsr     clear_screen
+000031CC  43F9 000040EE            338      lea     camp_msg, A1
+000031D2  103C 000E                339      move.b  #14, D0
+000031D6  4E4F                     340      trap    #15
+000031D8  13FC 000A 0000494A       341      move.b  #10, stamina
+000031E0  6100 085C                342      bsr     endl
+000031E4  6100 0858                343      bsr     endl
+000031E8  6100 0808                344      bsr     pause
+000031EC  6100 FF46                345      bsr     explore    
+000031F0                           346  
+000031F0                           347  
+000031F0                           348  *-------------------------------------------------------
+000031F0                           349  *---Game Play (Exploration)-----------------------------
+000031F0                           350  *-------------------------------------------------------
+000031F0                           351  
+000031F0                           352  
+000031F0                           353  movement:
+000031F0  6100 07F4                354      bsr     clear_screen
+000031F4  5239 0000494B            355      add.b   #1, steps
+000031FA  5339 0000494A            356      sub.b   #1, stamina
+00003200  43F9 00003F3A            357      lea     move_msg, A1
+00003206  103C 000E                358      move.b  #14, D0
+0000320A  4E4F                     359      trap    #15
+0000320C  6100 0830                360      bsr     endl
+00003210  6100 082C                361      bsr     endl
+00003214                           362      
+00003214  6100 07DC                363      bsr     pause
+00003218  6100 07CC                364      bsr     clear_screen
+0000321C                           365      
+0000321C  4241                     366      clr     D1
+0000321E  1239 0000494B            367      move.b  steps, D1
+00003224  B27C 0002                368      cmp     #treasure, D1
+00003228  6700 00A4                369      beq     event_treasure
+0000322C                           370      
+0000322C  B27C 0004                371      cmp     #thief_combat, D1
+00003230  6700 00C8                372      beq     thief_encounter
+00003234                           373      
+00003234  B27C 0008                374      cmp     #peddlar, D1
+00003238  6700 00E4                375      beq     peddlar_encounter
+0000323C                           376      
+0000323C  B27C 000C                377      cmp     #thief_combat_two, D1
+00003240  6700 00B8                378      beq     thief_encounter
+00003244                           379      
+00003244  6600 FEEE                380      bne     explore
+00003248                           381       
+00003248                           382      
+00003248                           383  *-------------------------------------------------------
+00003248                           384  *---Treasure Event (Exploration)------------------------
+00003248                           385  *------------------------------------------------------- 
+00003248                           386  
+00003248                           387  
+00003248                           388  return:
+00003248  6100 079C                389      bsr     clear_screen
+0000324C  4241                     390      clr     D1
+0000324E  1239 00004947            391      move.b  murder_quest, D1
+00003254  B27C 0000                392      cmp     #0, D1
+00003258  6700 002C                393      beq     cannot_return
+0000325C                           394      
+0000325C  43F9 00003D8B            395      lea     return_msg, A1
+00003262  103C 000E                396      move.b  #14, D0
+00003266  4E4F                     397      trap    #15
+00003268  6100 07D4                398      bsr     endl
+0000326C  6100 07D0                399      bsr     endl
+00003270  6100 FDD0                400      bsr     input
+00003274                           401      
+00003274  B27C 0001                402      cmp     #1, D1
+00003278  6700 078C                403      beq     explore_start
+0000327C                           404      
+0000327C  B27C 0002                405      cmp     #2, D1
+00003280  6700 0024                406      beq     search
+00003284                           407      
+00003284  66C2                     408      bne     return
+00003286                           409      
+00003286                           410      
+00003286                           411  *-------------------------------------------------------
+00003286                           412  *---Treasure Event (Exploration)------------------------
+00003286                           413  *-------------------------------------------------------
+00003286                           414  
+00003286                           415  
+00003286                           416  cannot_return:
+00003286  6100 075E                417      bsr     clear_screen
+0000328A  43F9 00004642            418      lea     cannot_return_msg, A1
+00003290  103C 000E                419      move.b  #14, D0
+00003294  4E4F                     420      trap    #15
+00003296  6100 07A6                421      bsr     endl
+0000329A  6100 07A2                422      bsr     endl
+0000329E  6100 0752                423      bsr     pause
+000032A2  6100 FE90                424      bsr     explore
+000032A6                           425  
+000032A6                           426  
+000032A6                           427  *-------------------------------------------------------
+000032A6                           428  *---searching for the murderer--------------------------
+000032A6                           429  *-------------------------------------------------------
+000032A6                           430  
+000032A6                           431  
+000032A6                           432  search:
+000032A6  6100 073E                433      bsr     clear_screen
+000032AA  43F9 00004688            434      lea     search_msg, A1
+000032B0  103C 000E                435      move.b  #14, D0
+000032B4  4E4F                     436      trap    #15
+000032B6  13FC 0001 00004948       437      move.b  #1, boss_battle
+000032BE  6100 077E                438      bsr     endl
+000032C2  6100 077A                439      bsr     endl
+000032C6  6100 072A                440      bsr     pause
+000032CA  6100 0456                441      bsr     final_battle
+000032CE                           442  
+000032CE                           443  
+000032CE                           444  *-------------------------------------------------------
+000032CE                           445  *---Treasure Event (Exploration)------------------------
+000032CE                           446  *-------------------------------------------------------
+000032CE                           447  
+000032CE                           448  
+000032CE                           449  event_treasure:
+000032CE  6100 0716                450      bsr     clear_screen
+000032D2  43F9 0000403D            451      lea     treasure_msg, A1
+000032D8  103C 000E                452      move.b  #14, D0
+000032DC  4E4F                     453      trap    #15
+000032DE  0639 000A 0000494C       454      add.b   #10, gold
+000032E6  6100 0756                455      bsr     endl
+000032EA  6100 0752                456      bsr     endl
+000032EE  6100 0702                457      bsr     pause
+000032F2  6100 06F2                458      bsr     clear_screen
+000032F6  6100 FE3C                459      bsr     explore
+000032FA                           460  
+000032FA                           461  
+000032FA                           462  *-------------------------------------------------------
+000032FA                           463  *---Thief Encounter Event (Exploration)-----------------
+000032FA                           464  *-------------------------------------------------------
+000032FA                           465  
+000032FA                           466  
+000032FA                           467  thief_encounter:
+000032FA  6100 06EA                468      bsr     clear_screen
+000032FE  43F9 00004137            469      lea     thief_msg, A1
+00003304  103C 000E                470      move.b  #14, D0
+00003308  4E4F                     471      trap    #15
+0000330A  6100 0732                472      bsr     endl
+0000330E  6100 072E                473      bsr     endl
+00003312  6100 06DE                474      bsr     pause
+00003316  6100 06CE                475      bsr     clear_screen
+0000331A  6100 014E                476      bsr     combat
+0000331E                           477  
+0000331E                           478  
+0000331E                           479  *-------------------------------------------------------
+0000331E                           480  *---Thief Encounter Event (Exploration)-----------------
+0000331E                           481  *-------------------------------------------------------
+0000331E                           482  
+0000331E                           483  
+0000331E                           484  peddlar_encounter:
+0000331E  6100 06C6                485      bsr     clear_screen
+00003322  43F9 00004326            486      lea     peddlar_enct_msg, A1
+00003328  103C 000E                487      move.b  #14, D0
+0000332C  4E4F                     488      trap    #15
+0000332E  6100 070E                489      bsr     endl
+00003332  6100 070A                490      bsr     endl
+00003336  6100 FD0A                491      bsr     input
+0000333A                           492      
+0000333A                           493      
+0000333A  B27C 0001                494      cmp     #1, D1
+0000333E  6700 0014                495      beq     shop
+00003342                           496      
+00003342  B27C 0002                497      cmp     #2, D1
+00003346  6700 00D0                498      beq     murderer_quest
+0000334A                           499      
+0000334A  B27C 0003                500      cmp     #3, D1
+0000334E  6700 FDE4                501      beq     explore
+00003352                           502  
+00003352  66CA                     503      bne     peddlar_encounter
+00003354                           504      
+00003354                           505      
+00003354                           506      
+00003354                           507  *-------------------------------------------------------
+00003354                           508  *---Combat (Exploration)-----------------------------
+00003354                           509  *-------------------------------------------------------
+00003354                           510  
+00003354                           511      
+00003354                           512  shop:
+00003354  6100 0690                513      bsr     clear_screen
+00003358  43F9 000043E8            514      lea     shop_msg, A1
+0000335E  103C 000E                515      move.b  #14, D0
+00003362  4E4F                     516      trap    #15
+00003364                           517      
+00003364  6100 FCDC                518      bsr     input
+00003368                           519      
+00003368  B27C 0001                520      cmp     #1, D1
+0000336C  6700 0012                521      beq     buy_water
+00003370                           522      
+00003370  B27C 0002                523      cmp     #2, D1
+00003374  6700 0066                524      beq     upgrade_weapon
+00003378                           525      
+00003378  B27C 0003                526      cmp     #3, D1
+0000337C  67A0                     527      beq     peddlar_encounter
+0000337E                           528      
+0000337E  66D4                     529      bne     shop
+00003380                           530      
+00003380                           531  
+00003380                           532  
+00003380                           533  *-------------------------------------------------------
+00003380                           534  *---Buy water flasks------------------------------------
+00003380                           535  *-------------------------------------------------------
+00003380                           536  
+00003380                           537  
+00003380                           538  buy_water:
+00003380  6100 0664                539      bsr     clear_screen 
+00003384  4241                     540      clr     D1
+00003386  1239 0000494C            541      move.b  gold, D1
+0000338C  B27C 000A                542      cmp     #10, D1
+00003390  6D00 002A                543      blt     no_gold
+00003394                           544      
+00003394                           545      
+00003394  0439 000A 0000494C       546      sub.b   #10, gold
+0000339C  5239 0000494E            547      add.b   #1, water_flask
+000033A2  43F9 0000459F            548      lea     water_gained_msg, A1
+000033A8  103C 000E                549      move.b  #14, D0
+000033AC  4E4F                     550      trap    #15
+000033AE  6100 068E                551      bsr     endl
+000033B2  6100 068A                552      bsr     endl
+000033B6  6100 063A                553      bsr     pause
+000033BA                           554      
+000033BA  6198                     555      bsr     shop
+000033BC                           556  
+000033BC                           557  
+000033BC                           558  *-------------------------------------------------------
+000033BC                           559  *---Not Enough Gold-------------------------------------
+000033BC                           560  *-------------------------------------------------------
+000033BC                           561  
+000033BC                           562  
+000033BC                           563  no_gold:
+000033BC  6100 0628                564      bsr     clear_screen
+000033C0  43F9 0000458E            565      lea     no_gold_msg, A1
+000033C6  103C 000E                566      move.b  #14, D0
+000033CA  4E4F                     567      trap    #15
+000033CC  6100 0670                568      bsr     endl
+000033D0  6100 066C                569      bsr     endl
+000033D4  6100 061C                570      bsr     pause
+000033D8                           571      
+000033D8  6100 FF7A                572      bsr     shop
+000033DC                           573  
+000033DC                           574  
+000033DC                           575  *-------------------------------------------------------
+000033DC                           576  *---Upgrade weapon damage-------------------------------
+000033DC                           577  *-------------------------------------------------------
+000033DC                           578  
+000033DC                           579  
+000033DC                           580  upgrade_weapon:
+000033DC  6100 0608                581      bsr     clear_screen
+000033E0  4241                     582      clr     D1
+000033E2  1239 0000494C            583      move.b  gold, D1
+000033E8  B27C 0014                584      cmp     #20, D1
+000033EC  6DCE                     585      blt     no_gold
+000033EE                           586      
+000033EE  0439 0014 0000494C       587      sub.b   #20, gold
+000033F6  5439 0000494D            588      add.b   #2, damage
+000033FC  43F9 000045C1            589      lea     upgrade_gained_msg, A1
+00003402  103C 000E                590      move.b  #14, D0
+00003406  4E4F                     591      trap    #15
+00003408  6100 0634                592      bsr     endl
+0000340C  6100 0630                593      bsr     endl
+00003410  6100 05E0                594      bsr     pause
+00003414                           595      
+00003414  6100 FF3E                596      bsr     shop
+00003418                           597  
+00003418                           598    
+00003418                           599  *-------------------------------------------------------
+00003418                           600  *--Murderer Quest Info----------------------------------
+00003418                           601  *-------------------------------------------------------
+00003418                           602    
+00003418                           603  murderer_quest:
+00003418  6100 05CC                604      bsr     clear_screen
+0000341C                           605      
+0000341C  4241                     606      clr     D1
+0000341E  1239 00004947            607      move.b  murder_quest, D1
+00003424  B27C 0001                608      cmp     #1, D1
+00003428  6700 0024                609      beq     quest_active
+0000342C                           610      
+0000342C  5239 00004947            611      add.b   #1, murder_quest
+00003432  43F9 0000446E            612      lea     rumour_msg, A1
+00003438  103C 000E                613      move.b  #14, D0
+0000343C  4E4F                     614      trap    #15
+0000343E  6100 05FE                615      bsr     endl
+00003442  6100 05FA                616      bsr     endl
+00003446  6100 05AA                617      bsr     pause
+0000344A  6100 FED2                618      bsr     peddlar_encounter
+0000344E                           619      
+0000344E                           620      
+0000344E                           621  *-------------------------------------------------------
+0000344E                           622  *--Murderer Quest Already Active------------------------
+0000344E                           623  *-------------------------------------------------------
+0000344E                           624  
+0000344E                           625  
+0000344E                           626  quest_active:
+0000344E  43F9 000045EB            627      lea     quest_active_msg, A1
+00003454  103C 000E                628      move.b  #14, D0
+00003458  4E4F                     629      trap    #15
+0000345A  6100 05E2                630      bsr     endl
+0000345E  6100 05DE                631      bsr     endl
+00003462  6100 058E                632      bsr     pause
+00003466  6100 FEB6                633      bsr     peddlar_encounter
+0000346A                           634  
+0000346A                           635  
+0000346A                           636  *-------------------------------------------------------
+0000346A                           637  *---Combat (thief)--------------------------------------
+0000346A                           638  *-------------------------------------------------------
+0000346A                           639  
+0000346A                           640  
+0000346A                           641  combat:
+0000346A                           642      ; display player's health in combat
+0000346A  6100 057A                643      bsr         clear_screen
+0000346E  43F9 000041F2            644      lea         combat_hp_msg, A1
+00003474  103C 000E                645      move.b      #14, D0
+00003478  4E4F                     646      trap        #15
+0000347A                           647  
+0000347A  4241                     648      clr         D1
+0000347C  1239 00004949            649      move.b      health, D1
+00003482  103C 0003                650      move.b      #3, D0
+00003486  4E4F                     651      trap        #15
+00003488  6100 05B4                652      bsr         endl
+0000348C  6100 05B0                653      bsr         endl
+00003490                           654      
+00003490                           655      ; display thief's health in combat
+00003490  43F9 000041FB            656      lea         thief_hp_msg, A1
+00003496  103C 000E                657      move.b      #14, D0
+0000349A  4E4F                     658      trap        #15
+0000349C                           659  
+0000349C  4241                     660      clr         D1
+0000349E  1239 00004950            661      move.b      thief_health, D1
+000034A4  103C 0003                662      move.b      #3, D0
+000034A8  4E4F                     663      trap        #15
+000034AA  6100 0592                664      bsr         endl
+000034AE  6100 058E                665      bsr         endl
+000034B2                           666      
+000034B2                           667      ; display combat actions
+000034B2  43F9 00004191            668      lea         combat_msg, A1
+000034B8  103C 000E                669      move.b      #14, D0
+000034BC  4E4F                     670      trap        #15
+000034BE                           671      
+000034BE  4241                     672      clr         D1
+000034C0  1239 0000494E            673      move.b      water_flask, D1
+000034C6  103C 0003                674      move.b      #3, D0
+000034CA  4E4F                     675      trap        #15
+000034CC                           676      
+000034CC  4241                     677      clr         D1
+000034CE  123C 0029                678      move.b      #41, D1
+000034D2  103C 0006                679      move.b      #6, D0
+000034D6  4E4F                     680      trap        #15
+000034D8                           681      
+000034D8  6100 0564                682      bsr         endl
+000034DC  6100 0560                683      bsr         endl
+000034E0  6100 FB60                684      bsr         input
+000034E4                           685      
+000034E4  B27C 0001                686      cmp         #1, D1
+000034E8  6700 0016                687      beq         attack
+000034EC                           688      
+000034EC  B27C 0002                689      cmp         #2, D1
+000034F0  6700 013C                690      beq         flee
+000034F4                           691      
+000034F4  B27C 0003                692      cmp         #3, D1
+000034F8  6700 016A                693      beq         heal
+000034FC  6600 FF6C                694      bne         combat
+00003500                           695  
+00003500                           696  
+00003500                           697  *-------------------------------------------------------
+00003500                           698  *---Attack (Combat)-------------------------------------
+00003500                           699  *-------------------------------------------------------
+00003500                           700  
+00003500                           701  
+00003500                           702  attack:
+00003500  6100 04E4                703      bsr         clear_screen
+00003504  43F9 00004215            704      lea         attack_msg, A1
+0000350A  103C 000E                705      move.b      #14, D0
+0000350E  4E4F                     706      trap        #15
+00003510                           707      
+00003510                           708      ; display the damage dealt to the enemy
+00003510  4241                     709      clr         D1
+00003512  1239 0000494D            710      move.b      damage, D1
+00003518  103C 0003                711      move.b      #3, D0
+0000351C  4E4F                     712      trap        #15
+0000351E                           713      
+0000351E  43F9 00004267            714      lea         dmg_msg, A1
+00003524  103C 000E                715      move.b      #14, D0
+00003528  4E4F                     716      trap        #15
+0000352A  9339 00004950            717      sub.b       D1, thief_health
+00003530  6100 050C                718      bsr         endl
+00003534  6100 0508                719      bsr         endl
+00003538  6100 04B8                720      bsr         pause
+0000353C                           721      
+0000353C                           722      ; display the damage the enemy has dealt to the player
+0000353C  6100 04A8                723      bsr         clear_screen
+00003540  43F9 0000423D            724      lea         enemy_attack_msg, A1
+00003546  103C 000E                725      move.b      #14, D0
+0000354A  4E4F                     726      trap        #15
+0000354C                           727      
+0000354C  4241                     728      clr         D1
+0000354E  1239 00004951            729      move.b      thief_dmg, D1
+00003554  103C 0003                730      move.b      #3, D0
+00003558  4E4F                     731      trap        #15
+0000355A                           732      
+0000355A  43F9 00004267            733      lea         dmg_msg, A1
+00003560  103C 000E                734      move.b      #14, D0
+00003564  4E4F                     735      trap        #15
+00003566  9339 00004949            736      sub.b       D1, health
+0000356C                           737      
+0000356C  6100 04D0                738      bsr         endl
+00003570  6100 04CC                739      bsr         endl
+00003574  6100 047C                740      bsr         pause
+00003578                           741      
+00003578                           742      ; check if enemy or player has been defeated
+00003578  4241                     743      clr         D1
+0000357A  1239 00004949            744      move.b      health, D1
+00003580  B27C 0000                745      cmp         #0, D1
+00003584  6700 0088                746      beq         failure
+00003588                           747      
+00003588  B27C 000A                748      cmp         #max_hp, D1
+0000358C  6E00 0080                749      bgt         failure
+00003590                           750  
+00003590  4241                     751      clr         D1
+00003592  1239 00004950            752      move.b      thief_health, D1
+00003598  B27C 0000                753      cmp         #0, D1
+0000359C  6700 000E                754      beq         victory
+000035A0                           755      
+000035A0  B27C 000A                756      cmp         #thief_max_hp, D1
+000035A4  6E00 0006                757      bgt         victory
+000035A8                           758      
+000035A8  6600 FEC0                759      bne         combat
+000035AC                           760       
+000035AC                           761  
+000035AC                           762  *-------------------------------------------------------
+000035AC                           763  *---Victory (Combat)-------------------------------------
+000035AC                           764  *-------------------------------------------------------
+000035AC                           765  
+000035AC                           766  
+000035AC                           767  victory:
+000035AC  6100 0438                768      bsr         clear_screen
+000035B0  43F9 000042A2            769      lea         victory_msg, A1
+000035B6  103C 000E                770      move.b      #14, D0
+000035BA  4E4F                     771      trap        #15
+000035BC  0639 000C 0000494C       772      add.b       #12, gold
+000035C4  5239 0000494E            773      add.b       #1, water_flask
+000035CA  5239 0000494F            774      add.b       #1, honour
+000035D0                           775      
+000035D0                           776      ; reset enemy health
+000035D0  13FC 000A 00004950       777      move.b      #thief_max_hp, thief_health
+000035D8                           778      
+000035D8  6100 0464                779      bsr         endl
+000035DC  6100 0460                780      bsr         endl
+000035E0  6100 0410                781      bsr         pause
+000035E4  6100 FB4E                782      bsr         explore
+000035E8                           783     
+000035E8                           784     
+000035E8                           785  *-------------------------------------------------------
+000035E8                           786  *---Victory (final)-------------------------------------
+000035E8                           787  *-------------------------------------------------------
+000035E8                           788  
+000035E8                           789  
+000035E8                           790  game_won:
+000035E8  6100 03FC                791      bsr         clear_screen
+000035EC  43F9 00004794            792      lea         game_won_msg, A1
+000035F2  103C 000E                793      move.b      #14, D0
+000035F6  4E4F                     794      trap        #15 
+000035F8  5A39 0000494F            795      add.b       #5, honour
+000035FE  6100 043E                796      bsr         endl
+00003602  6100 043A                797      bsr         endl
+00003606  6100 03EA                798      bsr         pause
+0000360A  6100 0448                799      bsr         end_game
+0000360E                           800      
+0000360E                           801      
+0000360E                           802  *-------------------------------------------------------
+0000360E                           803  *---GameOver--------------------------------------------
+0000360E                           804  *-------------------------------------------------------
+0000360E                           805  
+0000360E                           806  
+0000360E                           807  failure:
+0000360E  6100 03D6                808      bsr         clear_screen
+00003612  43F9 00004314            809      lea         failure_msg, A1
+00003618  103C 000E                810      move.b      #14, D0
+0000361C  4E4F                     811      trap        #15
+0000361E                           812      
+0000361E  6100 041E                813      bsr         endl
+00003622  6100 041A                814      bsr         endl
+00003626  6100 03CA                815      bsr         pause
+0000362A  6100 0428                816      bsr         end_game
+0000362E                           817      
+0000362E                           818      
+0000362E                           819  *-------------------------------------------------------
+0000362E                           820  *---Flee (Combat)-------------------------------------
+0000362E                           821  *-------------------------------------------------------
+0000362E                           822  
+0000362E                           823  
+0000362E                           824  flee:
+0000362E  6100 03B6                825      bsr         clear_screen
+00003632  43F9 00004271            826      lea         flee_msg, A1
+00003638  103C 000E                827      move.b      #14, D0
+0000363C  4E4F                     828      trap        #15
+0000363E                           829      
+0000363E  6100 03FE                830      bsr         endl
+00003642  6100 03FA                831      bsr         endl
+00003646  6100 03AA                832      bsr         pause
+0000364A                           833      
+0000364A  4241                     834      clr         D1
+0000364C  1239 0000494F            835      move.b      honour, D1
+00003652  B27C 0000                836      cmp         #0, D1
+00003656  6700 FADC                837      beq         explore
+0000365A                           838      
+0000365A  5339 0000494F            839      sub.b       #1, honour
+00003660                           840      
+00003660  6100 FAD2                841      bsr         explore
+00003664                           842  
+00003664                           843  
+00003664                           844  *-------------------------------------------------------
+00003664                           845  *---Heal (Combat)-------------------------------------
+00003664                           846  *-------------------------------------------------------
+00003664                           847  
+00003664                           848  
+00003664                           849  heal:
+00003664  6100 0380                850      bsr         clear_screen
+00003668                           851      
+00003668  4241                     852      clr         D1
+0000366A  1239 0000494E            853      move.b      water_flask, D1
+00003670  B27C 0000                854      cmp         #0, D1
+00003674  6700 007C                855      beq         no_water
+00003678                           856      
+00003678  4241                     857      clr         D1
+0000367A  1239 00004949            858      move.b      health, D1
+00003680  B27C 000A                859      cmp         #max_hp, D1
+00003684  6700 003C                860      beq         full_health
+00003688                           861      
+00003688  5339 0000494E            862      sub.b       #1, water_flask
+0000368E  13FC 000A 00004949       863      move.b      #max_hp, health
+00003696  43F9 00004747            864      lea         heal_msg, A1
+0000369C  103C 000E                865      move.b      #14, D0
+000036A0  4E4F                     866      trap        #15
+000036A2  6100 039A                867      bsr         endl
+000036A6  6100 0396                868      bsr         endl
+000036AA  6100 0346                869      bsr         pause
+000036AE                           870      
+000036AE  4241                     871      clr         D1
+000036B0  1239 00004948            872      move.b      boss_battle, D1
+000036B6  B27C 0001                873      cmp         #1, D1
+000036BA  6700 0066                874      beq         final_battle
+000036BE                           875      
+000036BE  6600 FDAA                876      bne         combat
+000036C2                           877  
+000036C2                           878  
+000036C2                           879  *-------------------------------------------------------
+000036C2                           880  *---Full Health (Combat)--------------------------------
+000036C2                           881  *-------------------------------------------------------
+000036C2                           882  
+000036C2                           883  
+000036C2                           884  full_health:
+000036C2  6100 0322                885      bsr         clear_screen
+000036C6  43F9 00004766            886      lea         full_health_msg, A1
+000036CC  103C 000E                887      move.b      #14, D0
+000036D0  4E4F                     888      trap        #15
+000036D2  6100 036A                889      bsr         endl
+000036D6  6100 0366                890      bsr         endl
+000036DA  6100 0316                891      bsr         pause
+000036DE                           892      
+000036DE  4241                     893      clr         D1
+000036E0  1239 00004948            894      move.b      boss_battle, D1
+000036E6  B27C 0001                895      cmp         #1, D1
+000036EA  6700 0036                896      beq         final_battle
+000036EE                           897      
+000036EE  6600 FD7A                898      bne         combat
+000036F2                           899      
+000036F2                           900      
+000036F2                           901  *-------------------------------------------------------
+000036F2                           902  *---No water Flasks (Combat)----------------------------
+000036F2                           903  *-------------------------------------------------------
+000036F2                           904  
+000036F2                           905  
+000036F2                           906  no_water:
+000036F2  6100 02F2                907      bsr         clear_screen
+000036F6  43F9 00004776            908      lea         no_water_msg, A1
+000036FC  103C 000E                909      move.b      #14, D0
+00003700  4E4F                     910      trap        #15
+00003702  6100 033A                911      bsr         endl
+00003706  6100 0336                912      bsr         endl
+0000370A  6100 02E6                913      bsr         pause
+0000370E                           914      
+0000370E  4241                     915      clr         D1
+00003710  1239 00004948            916      move.b      boss_battle, D1
+00003716  B27C 0001                917      cmp         #1, D1
+0000371A  6700 0006                918      beq         final_battle
+0000371E                           919      
+0000371E  6600 FD4A                920      bne         combat
+00003722                           921      
+00003722                           922      
+00003722                           923      
+00003722                           924  *-------------------------------------------------------
+00003722                           925  *---Combat (Final)--------------------------------------
+00003722                           926  *-------------------------------------------------------
+00003722                           927  
+00003722                           928  
+00003722                           929  final_battle:
+00003722                           930      ; display player's health in combat
+00003722  6100 02C2                931      bsr         clear_screen
+00003726  43F9 000041F2            932      lea         combat_hp_msg, A1
+0000372C  103C 000E                933      move.b      #14, D0
+00003730  4E4F                     934      trap        #15
+00003732                           935  
+00003732  4241                     936      clr         D1
+00003734  1239 00004949            937      move.b      health, D1
+0000373A  103C 0003                938      move.b      #3, D0
+0000373E  4E4F                     939      trap        #15
+00003740  6100 02FC                940      bsr         endl
+00003744  6100 02F8                941      bsr         endl
+00003748                           942      
+00003748                           943      ; display thief's health in combat
+00003748  43F9 00004203            944      lea         murderer_hp_msg, A1
+0000374E  103C 000E                945      move.b      #14, D0
+00003752  4E4F                     946      trap        #15
+00003754                           947  
+00003754  4241                     948      clr         D1
+00003756  1239 00004952            949      move.b      murderer_hp, D1
+0000375C  103C 0003                950      move.b      #3, D0
+00003760  4E4F                     951      trap        #15
+00003762  6100 02DA                952      bsr         endl
+00003766  6100 02D6                953      bsr         endl
+0000376A                           954      
+0000376A                           955      ; display combat actions
+0000376A  43F9 000041C7            956      lea         final_battle_msg, A1
+00003770  103C 000E                957      move.b      #14, D0
+00003774  4E4F                     958      trap        #15
+00003776                           959      
+00003776  4241                     960      clr         D1
+00003778  1239 0000494E            961      move.b      water_flask, D1
+0000377E  103C 0003                962      move.b      #3, D0
+00003782  4E4F                     963      trap        #15
+00003784                           964      
+00003784  4241                     965      clr         D1
+00003786  123C 0029                966      move.b      #41, D1
+0000378A  103C 0006                967      move.b      #6, D0
+0000378E  4E4F                     968      trap        #15
+00003790                           969      
+00003790  6100 02AC                970      bsr         endl
+00003794  6100 02A8                971      bsr         endl
+00003798  6100 F8A8                972      bsr         input
+0000379C                           973      
+0000379C  B27C 0001                974      cmp         #1, D1
+000037A0  6700 000E                975      beq         boss_attack
+000037A4                           976      
+000037A4  B27C 0002                977      cmp         #2, D1
+000037A8  6700 FEBA                978      beq         heal
+000037AC  6600 FF74                979      bne         final_battle
+000037B0                           980      
+000037B0                           981      
+000037B0                           982  *-------------------------------------------------------
+000037B0                           983  *---Attack (final)-------------------------------------
+000037B0                           984  *-------------------------------------------------------
+000037B0                           985  
+000037B0                           986  
+000037B0                           987  boss_attack:
+000037B0  6100 0234                988      bsr         clear_screen
+000037B4  43F9 00004215            989      lea         attack_msg, A1
+000037BA  103C 000E                990      move.b      #14, D0
+000037BE  4E4F                     991      trap        #15
+000037C0                           992      
+000037C0                           993      ; display the damage dealt to the enemy
+000037C0  4241                     994      clr         D1
+000037C2  1239 0000494D            995      move.b      damage, D1
+000037C8  103C 0003                996      move.b      #3, D0
+000037CC  4E4F                     997      trap        #15
+000037CE                           998      
+000037CE  43F9 00004267            999      lea         dmg_msg, A1
+000037D4  103C 000E               1000      move.b      #14, D0
+000037D8  4E4F                    1001      trap        #15
+000037DA  9339 00004952           1002      sub.b       D1, murderer_hp
+000037E0  6100 025C               1003      bsr         endl
+000037E4  6100 0258               1004      bsr         endl
+000037E8  6100 0208               1005      bsr         pause
+000037EC                          1006      
+000037EC                          1007      ; display the damage the enemy has dealt to the player
+000037EC  6100 01F8               1008      bsr         clear_screen
+000037F0  43F9 0000423D           1009      lea         enemy_attack_msg, A1
+000037F6  103C 000E               1010      move.b      #14, D0
+000037FA  4E4F                    1011      trap        #15
+000037FC                          1012      
+000037FC  4241                    1013      clr         D1
+000037FE  1239 00004953           1014      move.b      murderer_dmg, D1
+00003804  103C 0003               1015      move.b      #3, D0
+00003808  4E4F                    1016      trap        #15
+0000380A                          1017      
+0000380A  43F9 00004267           1018      lea         dmg_msg, A1
+00003810  103C 000E               1019      move.b      #14, D0
+00003814  4E4F                    1020      trap        #15
+00003816  9339 00004949           1021      sub.b       D1, health
+0000381C                          1022      
+0000381C  6100 0220               1023      bsr         endl
+00003820  6100 021C               1024      bsr         endl
+00003824  6100 01CC               1025      bsr         pause
+00003828                          1026      
+00003828                          1027      ; check if enemy or player has been defeated
+00003828  4241                    1028      clr         D1
+0000382A  1239 00004949           1029      move.b      health, D1
+00003830  B27C 0000               1030      cmp         #0, D1
+00003834  6700 FDD8               1031      beq         failure
+00003838                          1032      
+00003838  B27C 000A               1033      cmp         #max_hp, D1
+0000383C  6E00 FDD0               1034      bgt         failure
+00003840                          1035  
+00003840  4241                    1036      clr         D1
+00003842  1239 00004952           1037      move.b      murderer_hp, D1
+00003848  B27C 0000               1038      cmp         #0, D1
+0000384C  6700 FD9A               1039      beq         game_won
+00003850                          1040      
+00003850  B27C 0014               1041      cmp         #murderer_max_hp, D1
+00003854  6E00 FD92               1042      bgt         game_won
+00003858                          1043      
+00003858  6600 FEC8               1044      bne         final_battle
+0000385C                          1045      
+0000385C                          1046      
+0000385C                          1047  *-------------------------------------------------------
+0000385C                          1048  *---Game Play (Exploration)-----------------------------
+0000385C                          1049  *-------------------------------------------------------
+0000385C                          1050  
+0000385C                          1051  
+0000385C                          1052  display_stats:
+0000385C                          1053      ; display health message and player's current health
+0000385C  6100 0188               1054      bsr         clear_screen
+00003860  43F9 00003FF4           1055      lea         health_msg, A1
+00003866  103C 000E               1056      move.b      #14, D0
+0000386A  4E4F                    1057      trap        #15
+0000386C                          1058      
+0000386C  4241                    1059      clr         D1
+0000386E  1239 00004949           1060      move.b      health, D1
+00003874  103C 0003               1061      move.b      #3, D0
+00003878  4E4F                    1062      trap        #15
+0000387A  6100 01C2               1063      bsr         endl
+0000387E  6100 01BE               1064      bsr         endl
+00003882                          1065  
+00003882                          1066      ; display stamina message and player's current stamina
+00003882  43F9 00003FFD           1067      lea         stamina_msg, A1
+00003888  103C 000E               1068      move.b      #14, D0
+0000388C  4E4F                    1069      trap        #15
+0000388E                          1070      
+0000388E  4241                    1071      clr         D1
+00003890  1239 0000494A           1072      move.b      stamina, D1
+00003896  103C 0003               1073      move.b      #3, D0
+0000389A  4E4F                    1074      trap        #15
+0000389C  6100 01A0               1075      bsr         endl
+000038A0  6100 019C               1076      bsr         endl
+000038A4                          1077      
+000038A4                          1078      ; display steps message and steps taken by player
+000038A4  43F9 00004007           1079      lea         steps_msg, A1
+000038AA  103C 000E               1080      move.b      #14, D0
+000038AE  4E4F                    1081      trap        #15
+000038B0                          1082      
+000038B0  4241                    1083      clr         D1
+000038B2  1239 0000494B           1084      move.b      steps, D1
+000038B8  103C 0003               1085      move.b      #3, D0
+000038BC  4E4F                    1086      trap        #15
+000038BE  6100 017E               1087      bsr         endl
+000038C2  6100 017A               1088      bsr         endl
+000038C6                          1089      
+000038C6                          1090      ; display gold message and player's current gold value
+000038C6  43F9 000040AC           1091      lea         gold_msg, A1
+000038CC  103C 000E               1092      move.b      #14, D0
+000038D0  4E4F                    1093      trap        #15
+000038D2                          1094      
+000038D2  4241                    1095      clr         D1
+000038D4  1239 0000494C           1096      move.b      gold, D1
+000038DA  103C 0003               1097      move.b      #3, D0
+000038DE  4E4F                    1098      trap        #15
+000038E0                          1099      
+000038E0  4241                    1100      clr         D1
+000038E2  123C 0067               1101      move.b      #103, D1
+000038E6  103C 0006               1102      move.b      #6, D0
+000038EA  4E4F                    1103      trap        #15
+000038EC  6100 0150               1104      bsr         endl
+000038F0  6100 014C               1105      bsr         endl
+000038F4                          1106      
+000038F4                          1107      ; display honour message and current honour the player has
+000038F4  43F9 00004015           1108      lea         honour_msg, A1
+000038FA  103C 000E               1109      move.b      #14, D0
+000038FE  4E4F                    1110      trap        #15
+00003900                          1111      
+00003900  4241                    1112      clr         D1
+00003902  1239 0000494F           1113      move.b      honour, D1
+00003908  103C 0003               1114      move.b      #3, D0
+0000390C  4E4F                    1115      trap        #15
+0000390E  6100 012E               1116      bsr         endl
+00003912  6100 012A               1117      bsr         endl
+00003916                          1118      
+00003916  6100 00DA               1119      bsr         pause
+0000391A  6100 00CA               1120      bsr         clear_screen
+0000391E  6100 F85C               1121      bsr         status
+00003922                          1122      
+00003922                          1123  
+00003922                          1124  *-------------------------------------------------------
+00003922                          1125  *---Game Play (Exploration)-----------------------------
+00003922                          1126  *-------------------------------------------------------
+00003922                          1127  
+00003922                          1128  inventory:
+00003922                          1129      ; display water flasks message and current water flasks the player has
+00003922  6100 00C2               1130      bsr         clear_screen
+00003926  43F9 0000401E           1131      lea         water_flask_msg, A1
+0000392C  103C 000E               1132      move.b      #14, D0
+00003930  4E4F                    1133      trap        #15
+00003932                          1134      
+00003932  4241                    1135      clr         D1
+00003934  1239 0000494E           1136      move.b      water_flask, D1
+0000393A  103C 0003               1137      move.b      #3, D0
+0000393E  4E4F                    1138      trap        #15
+00003940  6100 00FC               1139      bsr         endl
+00003944  6100 00F8               1140      bsr         endl
+00003948                          1141          
+00003948                          1142      ; display weapon message and the damage of the player's damage
+00003948  43F9 0000402D           1143      lea         weapon_msg, A1
+0000394E  103C 000E               1144      move.b      #14, D0
+00003952  4E4F                    1145      trap        #15
+00003954                          1146      
+00003954  4241                    1147      clr         D1
+00003956  1239 0000494D           1148      move.b      damage, D1
+0000395C  103C 0003               1149      move.b      #3, D0
+00003960  4E4F                    1150      trap        #15
+00003962  6100 00DA               1151      bsr         endl
+00003966  6100 00D6               1152      bsr         endl
+0000396A                          1153      
+0000396A  6100 0086               1154      bsr         pause
+0000396E  6100 0076               1155      bsr         clear_screen
+00003972  6100 F808               1156      bsr         status
+00003976                          1157      
+00003976                          1158      
+00003976                          1159  *-------------------------------------------------------
+00003976                          1160  *-----------------Heads Up Display (Munny)--------------
+00003976                          1161  * Retrieves the score from memory location
+00003976                          1162  *-------------------------------------------------------  
+00003976                          1163  
+00003976                          1164   
+00003976                          1165  hud:
+00003976                          1166  
+00003976  6100 00C6               1167      bsr     endl
+0000397A  6100 004C               1168      bsr     decorate
+0000397E  43F9 00003FD0           1169      lea     hud_msg,A1
+00003984  103C 000E               1170      move.b  #14,D0
+00003988  4E4F                    1171      trap    #15
+0000398A  1213                    1172      move.b  (A3),D1     retrieve the value A3 point to and move to D1
+0000398C  103C 0003               1173      move.b  #3,D0       move literal 3 to D0
+00003990  4E4F                    1174      trap    #15         intrepret value in D0, which 3 which displays D1
+00003992  6100 0034               1175      bsr     decorate
+00003996  4E75                    1176      rts
+00003998                          1177  
+00003998                          1178  
+00003998                          1179  *-------------------------------------------------------
+00003998                          1180  *-----------------------Being Attacked------------------
+00003998                          1181  * This could be used for collision detection
+00003998                          1182  *-------------------------------------------------------
+00003998                          1183  
+00003998                          1184  
+00003998                          1185  
+00003998                          1186  collision_hit:
+00003998                          1187      *hit
+00003998  43F9 00003F92           1188      lea     hit_msg,A1
+0000399E  303C 000E               1189      move    #14,D0
+000039A2  4E4F                    1190      trap    #15
+000039A4  4E75                    1191      rts
+000039A6                          1192      
+000039A6                          1193  collision_miss:
+000039A6                          1194      *miss
+000039A6  43F9 00003F9A           1195      lea     miss_msg,A1
+000039AC  303C 000E               1196      move    #14,D0
+000039B0  4E4F                    1197      trap    #15
+000039B2  4E75                    1198      rts
+000039B4                          1199  
+000039B4                          1200  
+000039B4                          1201  *-------------------------------------------------------
+000039B4                          1202  *--------------------------Loop-------------------------
+000039B4                          1203  *-------------------------------------------------------
+000039B4                          1204  
+000039B4                          1205  
+000039B4                          1206  loop:
+000039B4  163C 0005               1207      move.b  #5, D3 loop counter D3=5
+000039B8                          1208  next:
+000039B8  43F9 00003FA0           1209      lea     loop_msg,A1
+000039BE  103C 000E               1210      move.b  #14,D0
+000039C2  4E4F                    1211      trap    #15
+000039C4  5343                    1212      sub     #1,D3   decrement loop counter
+000039C6  66F0                    1213      bne     next    repeat until D0=0
+000039C8                          1214  
+000039C8                          1215  
+000039C8                          1216  *-------------------------------------------------------
+000039C8                          1217  *------------------Screen Decoration--------------------
+000039C8                          1218  *-------------------------------------------------------
+000039C8                          1219  
+000039C8                          1220  
+000039C8                          1221  decorate:
+000039C8  163C 003C               1222      move.b  #60, D3
+000039CC  6100 0070               1223      bsr     endl
+000039D0                          1224  out:
+000039D0  43F9 00003FA0           1225      lea     loop_msg,A1
+000039D6  103C 000E               1226      move.b  #14,D0
+000039DA  4E4F                    1227      trap    #15
+000039DC  5343                    1228      sub     #1,D3   decrement loop counter
+000039DE  66F0                    1229      bne     out     repeat until D0=0
+000039E0  6100 005C               1230      bsr     endl
+000039E4  4E75                    1231      rts
+000039E6                          1232      
+000039E6                          1233  clear_screen: 
+000039E6  103C 000B               1234      move.b  #11,D0      clear screen
+000039EA  323C FF00               1235      move.w  #$ff00,D1
+000039EE  4E4F                    1236      trap    #15
+000039F0  4E75                    1237      rts
+000039F2                          1238      
+000039F2                          1239  pause:
+000039F2  43F9 00003FD9           1240      lea     pause_msg, A1
+000039F8  103C 000E               1241      move.b  #14, D0
+000039FC  4E4F                    1242      trap    #15
+000039FE                          1243      
+000039FE  103C 0004               1244      move.b  #4, D0
+00003A02  4E4F                    1245      trap    #15
+00003A04  4E75                    1246      rts
+00003A06                          1247      
+00003A06                          1248  explore_start:
+00003A06  61DE                    1249      bsr     clear_screen
+00003A08  43F9 00003DF8           1250      lea     explore_start_msg, A1
+00003A0E  103C 000E               1251      move.b  #14, D0
+00003A12  4E4F                    1252      trap    #15
+00003A14  6100 0028               1253      bsr     endl
+00003A18  61D8                    1254      bsr     pause
+00003A1A  61CA                    1255      bsr     clear_screen
+00003A1C  6100 F716               1256      bsr     explore
+00003A20                          1257      
+00003A20                          1258      
+00003A20                          1259  *-------------------------------------------------------
+00003A20                          1260  *------------------------Replay-------------------------
+00003A20                          1261  *-------------------------------------------------------
+00003A20                          1262  
+00003A20                          1263  
+00003A20                          1264  replay:
+00003A20  6100 001C               1265      bsr     endl
+00003A24  43F9 00003FA2           1266      lea     replay_msg,A1
+00003A2A  103C 000E               1267      move.b  #14,D0
+00003A2E  4E4F                    1268      trap    #15
+00003A30                          1269      
+00003A30  103C 0004               1270      move.b  #4,D0
+00003A34  4E4F                    1271      trap    #15
+00003A36                          1272  
+00003A36  B27C 0000               1273      cmp     #exit,D1
+00003A3A  6100 F60E               1274      bsr     gameloop
+00003A3E                          1275  
+00003A3E                          1276  endl:
+00003A3E  48E7 8040               1277      movem.l D0/A1,-(A7)
+00003A42  303C 000E               1278      move    #14,D0
+00003A46  43F9 00003A7C           1279      lea     crlf,A1
+00003A4C  4E4F                    1280      trap    #15
+00003A4E  4CDF 0201               1281      movem.l (A7)+,D0/A1
+00003A52  4E75                    1282      rts
+00003A54                          1283      
+00003A54                          1284      
+00003A54                          1285  *-------------------------------------------------------
+00003A54                          1286  *------------------------End-Game-----------------------
+00003A54                          1287  *-------------------------------------------------------
+00003A54                          1288  
+00003A54                          1289  
+00003A54                          1290  end_game:
+00003A54  6190                    1291      bsr         clear_screen
+00003A56  43F9 0000490D           1292      lea         end_game_msg, A1
+00003A5C  103C 000E               1293      move.b      #14, D0
+00003A60  4E4F                    1294      trap        #15
+00003A62  4241                    1295      clr         D1
+00003A64  1239 0000494F           1296      move.b      honour, D1
+00003A6A  103C 0003               1297      move.b      #3, D0
+00003A6E  4E4F                    1298      trap        #15
+00003A70                          1299      
+00003A70  61CC                    1300      bsr         endl
+00003A72  61CA                    1301      bsr         endl
+00003A74  6100 FF7C               1302      bsr         pause
+00003A78                          1303      
+00003A78  FFFF FFFF               1304      simhalt
+00003A7C                          1305  
+00003A7C                          1306  
+00003A7C                          1307  *-------------------------------------------------------
+00003A7C                          1308  *-------------------Data Delarations--------------------
+00003A7C                          1309  *-------------------------------------------------------
+00003A7C                          1310  
+00003A7C                          1311  
+00003A7C                          1312  
+00003A7C= 0D 0A 00                1313  crlf:                 dc.b    $0D,$0A,0
+00003A7F= 2A 2A 2A 2A 2A 2A ...   1314  welcome_msg:          dc.b    '************************************************************'
+00003ABB= 0D 0A                   1315                        dc.b    $0D,$0A
+00003ABD= 41 76 61 6C 6F 6E ...   1316                        dc.b    'Avalon: The Mysterious Foe'
+00003AD7= 0D 0A                   1317                        dc.b    $0D,$0A
+00003AD9= 2A 2A 2A 2A 2A 2A ...   1318                        dc.b    '************************************************************'
+00003B15= 0D 0A 00                1319                        dc.b    $0D,$0A,0
+00003B18= 59 6F 75 20 61 72 ...   1320  prologue:             dc.b  'You are a simple adventurer with only a copper shortsword at your'
+00003B59= 0D 0A                   1321                        dc.b  $0D, $0A
+00003B5B= 64 69 73 70 6F 73 ...   1322                        dc.b  'disposal.'
+00003B64= 0D 0A                   1323                        dc.b  $0D, $0A
+00003B66= 79 6F 75 20 68 61 ...   1324                        dc.b  'you have lived quietly at a tiny village but, things have'
+00003B9F= 0D 0A                   1325                        dc.b  $0D, $0A
+00003BA1= 74 75 72 6E 65 64 ...   1326                        dc.b  'turned for the worse recently.'
+00003BBF= 0D 0A                   1327                        dc.b  $0D, $0A
+00003BC1= 0D 0A                   1328                        dc.b  $0D, $0A
+00003BC3= 65 76 65 72 79 20 ...   1329                        dc.b  'every night, people have started dissappearing.'
+00003BF2= 0D 0A                   1330                        dc.b  $0D, $0A
+00003BF4= 79 6F 75 20 64 65 ...   1331                        dc.b  'you decided to investigate the cause of the dissappearences.'
+00003C30= 0D 0A                   1332                        dc.b  $0D, $0A
+00003C32= 0D 0A                   1333                        dc.b  $0D, $0A
+00003C34= 79 6F 75 20 73 74 ...   1334                        dc.b  'you start making your way to the village square.',0
+00003C65= 46 65 65 64 20 6C ...   1335  potion_msg:           dc.b    'Feed load (each horse needs at least 100 units of feed)'
+00003C9C= 0D 0A                   1336                        dc.b    $0D,$0A
+00003C9E= 45 6E 74 65 72 20 ...   1337                        dc.b    'Enter feed load : ',0
+00003CB1= 4E 75 6D 62 65 72 ...   1338  potions_msg:          dc.b    'Number of potions : ',0
+00003CC6= 45 61 63 68 20 71 ...   1339  weapons_msg:          dc.b    'Each quest need at least 2 Weapons'
+00003CE8= 0D 0A                   1340                        dc.b    $0D,$0A
+00003CEA= 6D 69 6E 69 6D 75 ...   1341                        dc.b    'minimum requirement is 2 i.e. Sword x 1 and Speer x 1.'
+00003D20= 0D 0A                   1342                        dc.b    $0D,$0A
+00003D22= 45 6E 74 65 72 20 ...   1343                        dc.b    'Enter # of weapons : ',0
+00003D38= 56 69 6C 6C 61 67 ...   1344  gameplay_msg:         dc.b    'Village',0
+00003D40= 79 6F 75 20 65 6E ...   1345  village_msg:          dc.b    'you enter the village square.'
+00003D5D= 0D 0A                   1346                        dc.b    $0D,$0A
+00003D5F= 57 68 61 74 20 64 ...   1347                        dc.b    'What do you do?'
+00003D6E= 0D 0A                   1348                        dc.b    $0D,$0A
+00003D70= 0D 0A                   1349                        dc.b    $0D,$0A
+00003D72= 0D 0A                   1350                        dc.b    $0D,$0A
+00003D74= 31 2E 20 45 78 70 ...   1351                        dc.b    '1. Explore the lands'
+00003D88= 0D 0A 00                1352                        dc.b    $0D,$0A,0
+00003D8B= 79 6F 75 20 72 65 ...   1353  return_msg:           dc.b    'you return to the village square.'
+00003DAC= 0D 0A                   1354                        dc.b    $0D,$0A
+00003DAE= 57 68 61 74 20 64 ...   1355                        dc.b    'What do you do?'
+00003DBD= 0D 0A                   1356                        dc.b    $0D,$0A
+00003DBF= 0D 0A                   1357                        dc.b    $0D,$0A
+00003DC1= 0D 0A                   1358                        dc.b    $0D,$0A
+00003DC3= 31 2E 20 65 78 70 ...   1359                        dc.b    '1. explore the lands'
+00003DD7= 0D 0A                   1360                        dc.b    $0D,$0A
+00003DD9= 0D 0A                   1361                        dc.b    $0D,$0A
+00003DDB= 32 2E 20 53 65 61 ...   1362                        dc.b    '2. Search for the murderer'
+00003DF5= 0D 0A 00                1363                        dc.b    $0D,$0A,0
+00003DF8= 59 6F 75 20 6C 65 ...   1364  explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
+00003E24= 2A 2D 2D 2D 2D 2D ...   1365                        dc.b    '*---------*'
+00003E2F= 0D 0A                   1366                        dc.b    $0D, $0A
+00003E31= 7C 20 45 78 70 6C ...   1367                        dc.b    '| Explore |'
+00003E3C= 0D 0A                   1368                        dc.b    $0D, $0A
+00003E3E= 2A 2D 2D 2D 2D 2D ...   1369                        dc.b    '*---------*'
+00003E49= 0D 0A                   1370                        dc.b    $0D, $0A
+00003E4B= 0D 0A                   1371                        dc.b    $0D, $0A
+00003E4D= 0D 0A                   1372                        dc.b    $0D, $0A
+00003E4F= 31 2E 20 54 72 61 ...   1373  travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
+00003E6C= 0D 0A                   1374                        dc.b    $0D,$0A
+00003E6E= 0D 0A                   1375                        dc.b    $0D,$0A
+00003E70= 32 2E 20 53 65 74 ...   1376                        dc.b    '2. Setup camp(restore stamina)'
+00003E8E= 0D 0A                   1377                        dc.b    $0D,$0A
+00003E90= 0D 0A                   1378                        dc.b    $0D,$0A
+00003E92= 33 2E 20 56 69 65 ...   1379                        dc.b    '3. View player status'
+00003EA7= 0D 0A                   1380                        dc.b    $0D,$0A
+00003EA9= 0D 0A                   1381                        dc.b    $0D,$0A
+00003EAB= 34 2E 20 52 65 74 ...   1382                        dc.b    '4. Return to the village.'
+00003EC4= 0D 0A                   1383                        dc.b    $0D,$0A
+00003EC6= 0D 0A 00                1384                        dc.b    $0D,$0A,0
+00003EC9= 2A 2D 2D 2D 2D 2D ...   1385  status_msg:           dc.b    '*--------*'
+00003ED3= 0D 0A                   1386                        dc.b    $0D, $0A
+00003ED5= 7C 20 53 74 61 74 ...   1387                        dc.b    '| Status |'
+00003EDF= 0D 0A                   1388                        dc.b    $0D, $0A
+00003EE1= 2A 2D 2D 2D 2D 2D ...   1389                        dc.b    '*--------*'
+00003EEB= 0D 0A                   1390                        dc.b    $0D, $0A
+00003EED= 0D 0A                   1391                        dc.b    $0D, $0A
+00003EEF= 0D 0A                   1392                        dc.b    $0D, $0A
+00003EF1= 31 2E 20 64 69 73 ...   1393                        dc.b    '1. display inventory'
+00003F05= 0D 0A                   1394                        dc.b    $0D,$0A
+00003F07= 0D 0A                   1395                        dc.b    $0D,$0A
+00003F09= 32 2E 20 76 69 65 ...   1396                        dc.b    '2. view player stats'
+00003F1D= 0D 0A                   1397                        dc.b    $0D,$0A
+00003F1F= 0D 0A                   1398                        dc.b    $0D,$0A
+00003F21= 33 2E 20 52 65 74 ...   1399                        dc.b    '3. Return to explore'
+00003F35= 0D 0A                   1400                        dc.b    $0D,$0A
+00003F37= 0D 0A 00                1401                        dc.b    $0D,$0A,0
+00003F3A= 79 6F 75 20 77 61 ...   1402  move_msg:             dc.b    'you walk for 1 minute!'
+00003F50= 0D 0A                   1403                        dc.b    $0D,$0A
+00003F52= 3C 3D 3D 20 73 74 ...   1404                        dc.b    '<== stamina decreased by 1! ==>',0
+00003F72= 55 70 64 61 74 65 ...   1405  update_msg:           dc.b    'Update Gameplay !',0
+00003F84= 44 72 61 77 20 53 ...   1406  draw_msg:             dc.b    'Draw Screen !',0
+00003F92= 53 74 72 69 6B 65 ...   1407  hit_msg:              dc.b    'Strike!',0
+00003F9A= 4D 69 73 73 21 00       1408  miss_msg:             dc.b    'Miss!',0
+00003FA0= 2E 00                   1409  loop_msg:             dc.b    '.',0
+00003FA2= 45 6E 74 65 72 20 ...   1410  replay_msg:           dc.b    'Enter 0 to Quit any other number to replay : ',0
+00003FD0= 53 63 6F 72 65 20 ...   1411  hud_msg:              dc.b    'Score : ',0
+00003FD9= 50 72 65 73 73 20 ...   1412  pause_msg:            dc.b    'Press Enter to continue...',0
+00003FF4= 48 65 61 6C 74 68 ...   1413  health_msg:           dc.b    'Health: ',0
+00003FFD= 53 74 61 6D 69 6E ...   1414  stamina_msg:          dc.b    'Stamina: ',0
+00004007= 53 74 65 70 73 20 ...   1415  steps_msg:            dc.b    'Steps Taken: ',0
+00004015= 48 6F 6E 6F 75 72 ...   1416  honour_msg:           dc.b    'Honour: ',0
+0000401E= 57 61 74 65 72 20 ...   1417  water_flask_msg:      dc.b    'Water Flasks: ',0
+0000402D= 57 65 61 70 6F 6E ...   1418  weapon_msg:           dc.b    'Weapon Damage: ',0
+0000403D= 41 66 74 65 72 20 ...   1419  treasure_msg:         dc.b    'After walking for a while, you stumble upon a small satchet.'
+00004079= 0D 0A                   1420                        dc.b    $0D,$0A
+0000407B= 59 6F 75 20 73 65 ...   1421                        dc.b    'You search the satchet.'
+00004092= 0D 0A                   1422                        dc.b    $0D,$0A
+00004094= 0D 0A                   1423                        dc.b    $0D,$0A
+00004096= 3C 3D 3D 20 79 6F ...   1424                        dc.b    '<== you found 10g ==>',0
+000040AC= 47 6F 6C 64 3A 20 00    1425  gold_msg:             dc.b    'Gold: ',0
+000040B3= 59 6F 75 20 61 72 ...   1426  stamina_lack_msg:     dc.b    'You are too tired to travel. rest up by setting up a camp!',0
+000040EE= 59 6F 75 20 73 65 ...   1427  camp_msg:             dc.b    'You setup a campfire and go to sleep.'
+00004113= 0D 0A                   1428                        dc.b    $0D,$0A
+00004115= 0D 0A                   1429                        dc.b    $0D,$0A
+00004117= 3C 3D 3D 20 53 74 ...   1430                        dc.b    '<== Stamina fully restored! ==>',0
+00004137= 57 68 69 6C 65 20 ...   1431  thief_msg:            dc.b    'While exploring the wilderness, you are attacked by a thief!'
+00004173= 0D 0A                   1432                        dc.b    $0D,$0A
+00004175= 0D 0A                   1433                        dc.b    $0D,$0A
+00004177= 3C 3D 3D 20 43 6F ...   1434                        dc.b    '<== Combat initiated! ==>',0
+00004191= 0D 0A                   1435  combat_msg:           dc.b    $0D, $0A
+00004193= 0D 0A                   1436                        dc.b    $0D, $0A
+00004195= 0D 0A                   1437                        dc.b    $0D, $0A
+00004197= 31 2E 20 41 74 74 ...   1438                        dc.b    '1. Attack'
+000041A0= 0D 0A                   1439                        dc.b    $0D,$0A
+000041A2= 0D 0A                   1440                        dc.b    $0D,$0A
+000041A4= 32 2E 20 46 6C 65 65    1441                        dc.b   '2. Flee'
+000041AB= 0D 0A                   1442                        dc.b    $0D,$0A
+000041AD= 0D 0A                   1443                        dc.b    $0D,$0A
+000041AF= 33 2E 20 48 65 61 ...   1444                        dc.b    '3. Heal (Water Flasks: ',0
+000041C7= 0D 0A                   1445  final_battle_msg:     dc.b    $0D, $0A
+000041C9= 0D 0A                   1446                        dc.b    $0D, $0A
+000041CB= 0D 0A                   1447                        dc.b    $0D, $0A
+000041CD= 31 2E 20 41 74 74 ...   1448                        dc.b    '1. Attack'
+000041D6= 0D 0A                   1449                        dc.b    $0D,$0A
+000041D8= 0D 0A                   1450                        dc.b    $0D,$0A
+000041DA= 32 2E 20 48 65 61 ...   1451                        dc.b    '2. Heal (Water Flasks: ',0
+000041F2= 50 6C 61 79 65 72 ...   1452  combat_hp_msg:        dc.b   'Player: ',0
+000041FB= 54 68 69 65 66 3A ...   1453  thief_hp_msg:         dc.b   'Thief: ',0
+00004203= 53 68 72 6F 75 64 ...   1454  murderer_hp_msg:      dc.b   'Shrouded Figure: ',0
+00004215= 59 6F 75 20 61 74 ...   1455  attack_msg:           dc.b    'You attack your opponent!'
+0000422E= 0D 0A                   1456                        dc.b    $0D,$0A
+00004230= 0D 0A                   1457                        dc.b    $0D,$0A
+00004232= 3C 3D 3D 20 44 65 ...   1458                        dc.b    '<== Dealt ',0
+0000423D= 59 6F 75 72 20 6F ...   1459  enemy_attack_msg:     dc.b    'Your opponent strikes back!'
+00004258= 0D 0A                   1460                        dc.b    $0D,$0A
+0000425A= 0D 0A                   1461                        dc.b    $0D,$0A
+0000425C= 3C 3D 3D 20 44 65 ...   1462                        dc.b    '<== Dealt ',0
+00004267= 20 64 6D 67 21 20 ...   1463  dmg_msg:              dc.b    ' dmg! ==>',0
+00004271= 59 6F 75 20 66 6C ...   1464  flee_msg:             dc.b    'You flee the scene!'
+00004284= 0D 0A                   1465                        dc.b    $0D,$0A
+00004286= 0D 0A                   1466                        dc.b    $0D,$0A
+00004288= 3C 3D 3D 20 79 6F ...   1467                        dc.b    '<== you lost 1 Honour ==>',0
+000042A2= 3C 3D 3D 20 56 69 ...   1468  victory_msg:          dc.b    '<== Victory Achieved! ==>'
+000042BB= 0D 0A                   1469                        dc.b    $0D,$0A
+000042BD= 0D 0A                   1470                        dc.b    $0D,$0A
+000042BF= 0D 0A                   1471                        dc.b    $0D,$0A
+000042C1= 3C 3D 3D 20 4F 62 ...   1472                        dc.b    '<== Obtained 1 Honour ==>'
+000042DA= 0D 0A                   1473                        dc.b    $0D,$0A
+000042DC= 3C 3D 3D 20 4F 62 ...   1474                        dc.b    '<== Obtained 12g ==>'
+000042F0= 0D 0A                   1475                        dc.b    $0D,$0A
+000042F2= 3C 3D 3D 20 4F 62 ...   1476                        dc.b    '<== Obtained water flask x1 ==>'
+00004311= 0D 0A 00                1477                        dc.b    $0D,$0A,0
+00004314= 3C 3D 3D 20 59 6F ...   1478  failure_msg:          dc.b    '<== You Died! ==>',0
+00004326= 41 73 20 79 6F 75 ...   1479  peddlar_enct_msg:     dc.b  'As you explore the land, you come across a wandering peddlar.'
+00004363= 0D 0A                   1480                        dc.b  $0D, $0A
+00004365= 0D 0A                   1481                        dc.b  $0D, $0A
+00004367= 54 68 65 20 70 65 ...   1482                        dc.b  'The peddlar approaches you.'
+00004382= 0D 0A                   1483                        dc.b  $0D, $0A
+00004384= 0D 0A                   1484                        dc.b  $0D, $0A
+00004386= 50 65 64 64 6C 61 ...   1485                        dc.b  'Peddlar: Greetings! May I intrest you in my wares?'
+000043B8= 0D 0A                   1486                        dc.b  $0D, $0A
+000043BA= 0D 0A                   1487                        dc.b  $0D, $0A
+000043BC= 0D 0A                   1488                        dc.b  $0D, $0A
+000043BE= 31 2E 20 42 72 6F ...   1489                        dc.b  '1. Browse Wares'
+000043CD= 0D 0A                   1490                        dc.b  $0D, $0A
+000043CF= 0D 0A                   1491                        dc.b  $0D, $0A
+000043D1= 32 2E 20 52 75 6D ...   1492                        dc.b  '2. Rumours'
+000043DB= 0D 0A                   1493                        dc.b  $0D, $0A
+000043DD= 0D 0A                   1494                        dc.b  $0D, $0A
+000043DF= 33 2E 20 4C 65 61 ...   1495                        dc.b  '3. Leave',0
+000043E8= 2A 2D 2D 2D 2D 2D ...   1496  shop_msg:             dc.b  '*------*'
+000043F0= 0D 0A                   1497                        dc.b  $0D, $0A
+000043F2= 7C 20 53 68 6F 70 ...   1498                        dc.b  '| Shop |'
+000043FA= 0D 0A                   1499                        dc.b  $0D, $0A
+000043FC= 2A 2D 2D 2D 2D 2D ...   1500                        dc.b  '*------*'
+00004404= 0D 0A                   1501                        dc.b  $0D, $0A
+00004406= 0D 0A                   1502                        dc.b  $0D, $0A
+00004408= 0D 0A                   1503                        dc.b  $0D, $0A
+0000440A= 31 2E 20 57 61 74 ...   1504                        dc.b  '1. Water Flask                          10g'
+00004435= 0D 0A                   1505                        dc.b  $0D, $0A
+00004437= 32 2E 20 57 65 61 ...   1506                        dc.b  '2. Weapon Enchancement <+2dmg>     20g'
+0000445A= 0D 0A                   1507                        dc.b  $0D, $0A
+0000445C= 0D 0A                   1508                        dc.b  $0D, $0A
+0000445E= 0D 0A                   1509                        dc.b  $0D, $0A
+00004460= 33 2E 20 52 65 74 ...   1510                        dc.b  '3. Return'
+00004469= 0D 0A                   1511                        dc.b  $0D, $0A
+0000446B= 0D 0A 00                1512                        dc.b  $0D, $0A,0
+0000446E= 59 6F 75 20 61 73 ...   1513  rumour_msg:           dc.b  'You ask the peddlar for rumours.'
+0000448E= 0D 0A                   1514                        dc.b  $0D, $0A
+00004490= 0D 0A                   1515                        dc.b  $0D, $0A
+00004492= 0D 0A                   1516                        dc.b  $0D, $0A
+00004494= 50 65 64 64 6C 61 ...   1517                        dc.b  'Peddlar: Rumours? Well it is said that there is a murderer on the loose.'
+000044DC= 0D 0A                   1518                        dc.b  $0D, $0A
+000044DE= 0D 0A                   1519                        dc.b  $0D, $0A
+000044E0= 50 65 64 64 6C 61 ...   1520                        dc.b  'Peddlar: Apparently, he was last seen in the village.'
+00004515= 0D 0A                   1521                        dc.b  $0D, $0A
+00004517= 0D 0A                   1522                        dc.b  $0D, $0A
+00004519= 50 65 64 64 6C 61 ...   1523                        dc.b  'Peddlar: The Bounty for getting rid of this guy is preeety high.'
+00004559= 0D 0A                   1524                        dc.b  $0D, $0A
+0000455B= 0D 0A                   1525                        dc.b  $0D, $0A
+0000455D= 0D 0A                   1526                        dc.b  $0D, $0A
+0000455F= 3C 3D 3D 20 53 74 ...   1527                        dc.b  '<== Started "Eliminate the Murderer" Quest ==>',0
+0000458E= 4E 6F 74 20 65 6E ...   1528  no_gold_msg:          dc.b  'Not enough gold!',0
+0000459F= 3C 3D 3D 20 59 6F ...   1529  water_gained_msg:     dc.b  '<== You Bought a Water Flask! ==>',0
+000045C1= 3C 3D 3D 20 59 6F ...   1530  upgrade_gained_msg:   dc.b  '<== You Upgraded your weapon by 2dmg! ==>',0
+000045EB= 59 6F 75 20 61 73 ...   1531  quest_active_msg:     dc.b  'You ask the peddlar for more rumours.'
+00004610= 0D 0A                   1532                        dc.b  $0D, $0A
+00004612= 0D 0A                   1533                        dc.b  $0D, $0A
+00004614= 0D 0A                   1534                        dc.b  $0D, $0A
+00004616= 50 65 64 64 6C 61 ...   1535                        dc.b  'Peddlar: Rumours? nothing new I''m afraid...',0
+00004642= 59 6F 75 20 73 68 ...   1536  cannot_return_msg:    dc.b  'You should find some information regarding the dissappearances first!',0
+00004688= 59 6F 75 20 62 65 ...   1537  search_msg:           dc.b  'You begin searching for the murderer.'
+000046AD= 0D 0A                   1538                        dc.b    $0D,$0A
+000046AF= 0D 0A                   1539                        dc.b    $0D,$0A
+000046B1= 61 66 74 65 72 20 ...   1540                        dc.b  'after Countless hours, you find a secret passage leading to a dark room'
+000046F8= 0D 0A                   1541                        dc.b    $0D,$0A
+000046FA= 0D 0A                   1542                        dc.b    $0D,$0A
+000046FC= 49 6E 20 74 68 65 ...   1543                        dc.b  'In the room, a shrouded figure attacks you!'
+00004727= 0D 0A                   1544                        dc.b    $0D,$0A
+00004729= 0D 0A                   1545                        dc.b    $0D,$0A
+0000472B= 0D 0A                   1546                        dc.b    $0D,$0A
+0000472D= 3C 3D 3D 20 43 6F ...   1547                        dc.b  '<== Combat Initiated! ==>',0
+00004747= 3C 3D 3D 20 48 65 ...   1548  heal_msg:             dc.b  '<== Health fully Restored! ==>',0
+00004766= 48 65 61 6C 74 68 ...   1549  full_health_msg:      dc.b  'Health is full!',0 
+00004776= 4E 6F 20 77 61 74 ...   1550  no_water_msg:         dc.b  'No water flasks in inventory!',0
+00004794= 2A 2D 2D 2D 2D 2D ...   1551  game_won_msg:         dc.b  '*---------------------*'
+000047AB= 0D 0A                   1552                        dc.b    $0D,$0A
+000047AD= 7C 20 20 43 6F 6E ...   1553                        dc.b  '|  Congratulations!!  |'
+000047C4= 0D 0A                   1554                        dc.b    $0D,$0A
+000047C6= 2A 2D 2D 2D 2D 2D ...   1555                        dc.b  '*---------------------*'
+000047DD= 0D 0A                   1556                        dc.b    $0D,$0A
+000047DF= 0D 0A                   1557                        dc.b    $0D,$0A
+000047E1= 0D 0A                   1558                        dc.b    $0D,$0A
+000047E3= 59 6F 75 20 68 61 ...   1559                        dc.b  'You have slain the murderer and retained peace in the village!'
+00004821= 0D 0A                   1560                        dc.b    $0D,$0A
+00004823= 0D 0A                   1561                        dc.b    $0D,$0A
+00004825= 0D 0A                   1562                        dc.b    $0D,$0A
+00004827= 3C 3D 3D 20 47 61 ...   1563                        dc.b  '<== Gained 5 Honour! ==>'
+0000483F= 0D 0A                   1564                        dc.b    $0D,$0A
+00004841= 0D 0A                   1565                        dc.b    $0D,$0A
+00004843= 0D 0A                   1566                        dc.b    $0D,$0A
+00004845= 41 6C 74 68 6F 75 ...   1567                        dc.b  'Although, you recognised the attire of the murderer.'
+00004879= 0D 0A                   1568                        dc.b    $0D,$0A
+0000487B= 49 74 20 69 73 20 ...   1569                        dc.b  'It is part of an infamous cult, the fellowship of the moon.'
+000048B6= 0D 0A                   1570                        dc.b    $0D,$0A
+000048B8= 59 6F 75 20 68 61 ...   1571                        dc.b  'You have decided to venture out into the world and find more clues'
+000048FA= 0D 0A                   1572                        dc.b    $0D,$0A
+000048FC= 61 62 6F 75 74 20 ...   1573                        dc.b  'about this cult.',0
+0000490D                          1574  
+0000490D= 2A 2D 2D 2D 2D 2D ...   1575  end_game_msg:         dc.b  '*-----------*'
+0000491A= 0D 0A                   1576                        dc.b    $0D,$0A
+0000491C= 7C 20 20 52 65 73 ...   1577                        dc.b  '|  Results  |'
+00004929= 0D 0A                   1578                        dc.b    $0D,$0A
+0000492B= 2A 2D 2D 2D 2D 2D ...   1579                        dc.b  '*-----------*'
+00004938= 0D 0A                   1580                        dc.b    $0D,$0A
+0000493A= 0D 0A                   1581                        dc.b    $0D,$0A
+0000493C= 0D 0A                   1582                        dc.b    $0D,$0A
+0000493E= 48 6F 6E 6F 75 72 ...   1583                        dc.b  'Honour: ',0        
+00004947                          1584  
+00004947                          1585  
+00004947                          1586  murder_quest:   ds.b    1
+00004948                          1587  boss_battle:    ds.b    1
+00004949                          1588  
+00004949                          1589  ; player stats
+00004949                          1590  health:         ds.b    1
+0000494A                          1591  stamina:        ds.b    1
+0000494B                          1592  steps:          ds.b    1
+0000494C                          1593  gold:           ds.b    1
+0000494D                          1594  damage:         ds.b    1
+0000494E                          1595  water_flask:    ds.b    1
+0000494F                          1596  honour:         ds.b    1
+00004950                          1597  
+00004950                          1598  
+00004950                          1599  ; enemy stats
+00004950                          1600  
+00004950                          1601  ; thief
+00004950                          1602  thief_health:   ds.b    1
+00004951                          1603  thief_dmg:      ds.b    1
+00004952                          1604  
+00004952                          1605  ; shrouded figure
+00004952                          1606  murderer_hp:    ds.b    1
+00004953                          1607  murderer_dmg:   ds.b    1 
+00004954                          1608  
+00004954                          1609      end start
 
 No errors detected
 No warnings generated
@@ -1232,121 +1619,141 @@ No warnings generated
 SYMBOL TABLE INFORMATION
 Symbol-name         Value
 -------------------------
-ATTACK              343E
-ATTACK_MSG          3D37
-BUY_WATER           32E2
-CAMP                31A4
-CAMP_MSG            3C66
-CANNOT_RETURN       3230
-CANNOT_RETURN_MSG   4164
-CLEAR_SCREEN        3706
-COLLISION_HIT       36B8
-COLLISION_MISS      36C6
-COMBAT              33CC
-COMBAT_HP_MSG       3D26
-COMBAT_MSG          3D09
-CRLF                3776
-DAMAGE              426E
-DECORATE            36E8
-DISPLAY_STATS       357C
-DMG_MSG             3D89
-DRAW                306C
-DRAW_MSG            3AFC
-END                 3006
-ENDL                3760
-ENEMY_ATTACK_MSG    3D5F
-EVENT_TREASURE      3230
+ATTACK              3500
+ATTACK_MSG          4215
+BOSS_ATTACK         37B0
+BOSS_BATTLE         4948
+BUY_WATER           3380
+CAMP                31C8
+CAMP_MSG            40EE
+CANNOT_RETURN       3286
+CANNOT_RETURN_MSG   4642
+CLEAR_SCREEN        39E6
+COLLISION_HIT       3998
+COLLISION_MISS      39A6
+COMBAT              346A
+COMBAT_HP_MSG       41F2
+COMBAT_MSG          4191
+CRLF                3A7C
+DAMAGE              494D
+DECORATE            39C8
+DISPLAY_STATS       385C
+DMG_MSG             4267
+DRAW                308E
+DRAW_MSG            3F84
+ENDL                3A3E
+END_GAME            3A54
+END_GAME_MSG        490D
+ENEMY_ATTACK_MSG    423D
+EVENT_TREASURE      32CE
 EXIT                0
-EXPLORE             3110
-EXPLORE_START       3726
-EXPLORE_START_MSG   399B
-FAILURE             3526
-FAILURE_MSG         3E36
-FEED                3086
-FLEE                3546
-FLEE_MSG            3D93
+EXPLORE             3134
+EXPLORE_START       3A06
+EXPLORE_START_MSG   3DF8
+FAILURE             360E
+FAILURE_MSG         4314
+FEED                30A8
+FINAL_BATTLE        3722
+FINAL_BATTLE_MSG    41C7
+FLEE                362E
+FLEE_MSG            4271
+FULL_HEALTH         36C2
+FULL_HEALTH_MSG     4766
 GAME                3000
-GAMELOOP            3028
-GAMEPLAY            30D4
-GAMEPLAY_MSG        38E5
-GOLD                426D
-GOLD_MSG            3C24
-HEALTH              426A
-HEALTH_MSG          3B6C
-HIT_MSG             3B0A
-HONOUR              4270
-HONOUR_MSG          3B8D
-HUD                 3696
-HUD_MSG             3B48
-INPUT               3020
-INVENTORY           3642
-LOOP                36D4
-LOOP_MSG            3B18
+GAMELOOP            304A
+GAMEPLAY            30F6
+GAMEPLAY_MSG        3D38
+GAME_WON            35E8
+GAME_WON_MSG        4794
+GOLD                494C
+GOLD_MSG            40AC
+HEAL                3664
+HEALTH              4949
+HEALTH_MSG          3FF4
+HEAL_MSG            4747
+HIT_MSG             3F92
+HONOUR              494F
+HONOUR_MSG          4015
+HUD                 3976
+HUD_MSG             3FD0
+INPUT               3042
+INVENTORY           3922
+LOOP                39B4
+LOOP_MSG            3FA0
 LOSE_POINT          8
 MAX_HP              A
 MAX_POTIONS         9
 MIN_FEED            64
 MIN_POTIONS         1
 MIN_WEAPONS         6
-MISS_MSG            3B12
-MOVEMENT            31CC
-MOVE_MSG            3AB2
-MURDERER_QUEST      337A
-MURDER_QUEST        4269
-NEXT                36D8
-NO_GOLD             331E
-NO_GOLD_MSG         40B0
-OUT                 36F0
-PAUSE               3712
-PAUSE_MSG           3B51
+MISS_MSG            3F9A
+MOVEMENT            31F0
+MOVE_MSG            3F3A
+MURDERER_DMG        4953
+MURDERER_HP         4952
+MURDERER_HP_MSG     4203
+MURDERER_MAX_HP     14
+MURDERER_QUEST      3418
+MURDER_QUEST        4947
+NEXT                39B8
+NO_GOLD             33BC
+NO_GOLD_MSG         458E
+NO_WATER            36F2
+NO_WATER_MSG        4776
+OUT                 39D0
+PAUSE               39F2
+PAUSE_MSG           3FD9
 PEDDLAR             8
-PEDDLAR_ENCOUNTER   3280
-PEDDLAR_ENCT_MSG    3E48
-POTIONS             30A0
-POTIONS_MSG         385E
-POTION_MSG          3812
-QUEST_ACTIVE        33B0
-QUEST_ACTIVE_MSG    410D
-REPLAY              373E
-REPLAY_MSG          3B1A
-RETURN              321C
-RETURN_MSG          3934
-RUMOUR_MSG          3F90
-SEARCH_MSG          41AA
-SHOP                32B6
-SHOP_MSG            3F0A
-STAMINA             426B
-STAMINA_LACK        3184
-STAMINA_LACK_MSG    3C2B
-STAMINA_MSG         3B75
+PEDDLAR_ENCOUNTER   331E
+PEDDLAR_ENCT_MSG    4326
+POTIONS             30C2
+POTIONS_MSG         3CB1
+POTION_MSG          3C65
+PROLOGUE            3B18
+QUEST_ACTIVE        344E
+QUEST_ACTIVE_MSG    45EB
+REPLAY              3A20
+REPLAY_MSG          3FA2
+RETURN              3248
+RETURN_MSG          3D8B
+RUMOUR_MSG          446E
+SEARCH              32A6
+SEARCH_MSG          4688
+SHOP                3354
+SHOP_MSG            43E8
+STAMINA             494A
+STAMINA_LACK        31A8
+STAMINA_LACK_MSG    40B3
+STAMINA_MSG         3FFD
 START               1000
-STATUS              3158
-STATUS_MSG          3A41
-STEPS               426C
-STEPS_MSG           3B7F
+STATUS              317C
+STATUS_MSG          3EC9
+STEPS               494B
+STEPS_MSG           4007
 THIEF_COMBAT        4
-THIEF_DMG           4272
-THIEF_ENCOUNTER     325C
-THIEF_HEALTH        4271
-THIEF_HP_MSG        3D2F
+THIEF_COMBAT_TWO    C
+THIEF_DMG           4951
+THIEF_ENCOUNTER     32FA
+THIEF_HEALTH        4950
+THIEF_HP_MSG        41FB
 THIEF_MAX_HP        A
-THIEF_MSG           3CAF
-TRAVEL_MSG          39C7
+THIEF_MSG           4137
+TRAVEL_MSG          3E4F
 TREASURE            2
-TREASURE_MSG        3BB5
-UPDATE              3052
-UPDATE_MSG          3AEA
-UPGRADE_GAINED_MSG  40E3
-UPGRADE_WEAPON      333E
-VICTORY             34EA
-VICTORY_MSG         3DC4
-VILLAGE_MSG         38ED
-WATER_FLASK         426F
-WATER_FLASK_MSG     3B96
-WATER_GAINED_MSG    40C1
-WEAPONS             30BA
-WEAPONS_MSG         3873
-WEAPON_MSG          3BA5
-WELCOME             300A
-WELCOME_MSG         3779
+TREASURE_MSG        403D
+UPDATE              3074
+UPDATE_MSG          3F72
+UPGRADE_GAINED_MSG  45C1
+UPGRADE_WEAPON      33DC
+VICTORY             35AC
+VICTORY_MSG         42A2
+VILLAGE_MSG         3D40
+WATER_FLASK         494E
+WATER_FLASK_MSG     401E
+WATER_GAINED_MSG    459F
+WEAPONS             30DC
+WEAPONS_MSG         3CC6
+WEAPON_MSG          402D
+WELCOME             3006
+WELCOME_MSG         3A7F
 WIN_POINT           5

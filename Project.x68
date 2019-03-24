@@ -3,8 +3,9 @@
 * Author: Michal Krzyzanowski
 * Login: C00240696 
 * Date: 21/01/19
-* Title: --
-* Description: --
+* Title: Avalon: The Mysterious Foe
+* Description: text-based adventure game, goal is to explore the world and complete
+* encouters such as battles and treasures
 *-------------------------------------------------------
 *Choose to be a Worker or a God 
 *https://www.avalon-rpg.com/
@@ -23,17 +24,18 @@ max_potions         EQU 9      max number of potions
 min_weapons         EQU 6      min weapons
 win_point           EQU 5      points accumilated on win
 lose_point          EQU 8      points deducted on a loss
+
 max_hp              EQU 10     max hp of player
 thief_max_hp        EQU 10     max hp of thief enemy
+murderer_max_hp     EQU 20     max hp of murderer
 
 
 ; events
 treasure            EQU 2      location of treasure
 thief_combat        EQU 4      location of thief encounter
 peddlar             EQU 8      location of wandering peddlar(shop) event
+thief_combat_two    EQU 12     location of second thief encounter
 
-
-; weapons(maybe)
 
 
 
@@ -49,7 +51,7 @@ start:
     
     move.b  #35, gold  player's gold, used to buy water or upgrade weapon
     
-    move.b  #5, damage  damage of player's weapon
+    move.b  #4, damage  damage of player's weapon
     
     move.b  #0, honour  player's honour, gained after winning battles
     
@@ -57,16 +59,20 @@ start:
     
     move.b  #0, murder_quest  boolean checking if murderer quest is active
     
+    move.b  #0, boss_battle  boolean if player is fighting the murderer
+    
     
     ; setup thief stats
     move.b  #thief_max_hp, thief_health
     move.b  #1, thief_dmg
+    
+    ; setup shrouded figure stats
+    move.b  #murderer_max_hp, murderer_hp
+    move.b  #4, murderer_dmg
 
 
-    ; bsr     welcome    branch to the welcome subroutine
-    ; bsr     input      branch to the input subroutine
-    ; bsr     game       branch to the game subroutine
-    bsr explore
+    bsr welcome    branch to the welcome subroutine
+    ;bsr explore
     
 *Game loop
     org     $3000      the rest of the program is to be located from 3000 onwards
@@ -81,8 +87,7 @@ game:
     bsr     gameloop   branch to gameloop subroutine
     rts                return from game: subroutine
           
-end:
-    simhalt
+
 
 
 *-------------------------------------------------------
@@ -96,7 +101,17 @@ welcome:
     move.b  #14,D0          move literal 14 to DO
     trap    #15             trap and interpret value in D0
     bsr     endl            branch to endl subroutine
-    rts                     return from welcome: subroutine
+    bsr     endl
+    bsr     pause
+    
+    bsr     clear_screen
+    lea     prologue, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     gameplay
     
 
 
@@ -219,13 +234,14 @@ weapons:
 
 
 gameplay:
-    bsr     endl
+    bsr     clear_screen
     bsr     decorate
     lea     gameplay_msg, A1
     move.b  #14,D0
     trap    #15
     bsr     decorate
     bsr     pause
+    bsr     clear_screen
     lea     village_msg, A1
     move.b  #14,D0
     trap    #15
@@ -235,8 +251,6 @@ gameplay:
     beq     explore_start
     bsr     clear_screen
     bne     gameplay
-    
-    rts
 
 
 *-------------------------------------------------------
@@ -352,16 +366,16 @@ movement:
     clr     D1
     move.b  steps, D1
     cmp     #treasure, D1
-    
     beq     event_treasure
     
     cmp     #thief_combat, D1
-    
     beq     thief_encounter
     
     cmp     #peddlar, D1
-    
     beq     peddlar_encounter
+    
+    cmp     #thief_combat_two, D1
+    beq     thief_encounter
     
     bne     explore
      
@@ -378,6 +392,21 @@ return:
     cmp     #0, D1
     beq     cannot_return
     
+    lea     return_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     input
+    
+    cmp     #1, D1
+    beq     explore_start
+    
+    cmp     #2, D1
+    beq     search
+    
+    bne     return
+    
     
 *-------------------------------------------------------
 *---Treasure Event (Exploration)------------------------
@@ -385,7 +414,31 @@ return:
 
 
 cannot_return:
-    
+    bsr     clear_screen
+    lea     cannot_return_msg, A1
+    move.b  #14, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     explore
+
+
+*-------------------------------------------------------
+*---searching for the murderer--------------------------
+*-------------------------------------------------------
+
+
+search:
+    bsr     clear_screen
+    lea     search_msg, A1
+    move.b  #14, D0
+    trap    #15
+    move.b  #1, boss_battle
+    bsr     endl
+    bsr     endl
+    bsr     pause
+    bsr     final_battle
 
 
 *-------------------------------------------------------
@@ -503,7 +556,7 @@ buy_water:
 
 
 *-------------------------------------------------------
-*---No Enough Gold--------------------------------------
+*---Not Enough Gold-------------------------------------
 *-------------------------------------------------------
 
 
@@ -581,7 +634,7 @@ quest_active:
 
 
 *-------------------------------------------------------
-*---Combat (Exploration)-----------------------------
+*---Combat (thief)--------------------------------------
 *-------------------------------------------------------
 
 
@@ -615,6 +668,17 @@ combat:
     lea         combat_msg, A1
     move.b      #14, D0
     trap        #15
+    
+    clr         D1
+    move.b      water_flask, D1
+    move.b      #3, D0
+    trap        #15
+    
+    clr         D1
+    move.b      #41, D1
+    move.b      #6, D0
+    trap        #15
+    
     bsr         endl
     bsr         endl
     bsr         input
@@ -624,6 +688,9 @@ combat:
     
     cmp         #2, D1
     beq         flee
+    
+    cmp         #3, D1
+    beq         heal
     bne         combat
 
 
@@ -676,10 +743,10 @@ attack:
     clr         D1
     move.b      health, D1
     cmp         #0, D1
-    beq         replay
+    beq         failure
     
     cmp         #max_hp, D1
-    bgt         replay
+    bgt         failure
 
     clr         D1
     move.b      thief_health, D1
@@ -687,13 +754,13 @@ attack:
     beq         victory
     
     cmp         #thief_max_hp, D1
-    bgt         failure
+    bgt         victory
     
     bne         combat
      
 
 *-------------------------------------------------------
-*---Flee (Combat)-------------------------------------
+*---Victory (Combat)-------------------------------------
 *-------------------------------------------------------
 
 
@@ -716,7 +783,24 @@ victory:
    
    
 *-------------------------------------------------------
-*---Flee (Combat)-------------------------------------
+*---Victory (final)-------------------------------------
+*-------------------------------------------------------
+
+
+game_won:
+    bsr         clear_screen
+    lea         game_won_msg, A1
+    move.b      #14, D0
+    trap        #15 
+    add.b       #5, honour
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    bsr         end_game
+    
+    
+*-------------------------------------------------------
+*---GameOver--------------------------------------------
 *-------------------------------------------------------
 
 
@@ -729,7 +813,7 @@ failure:
     bsr         endl
     bsr         endl
     bsr         pause
-    bsr         hud
+    bsr         end_game
     
     
 *-------------------------------------------------------
@@ -757,6 +841,209 @@ flee:
     bsr         explore
 
 
+*-------------------------------------------------------
+*---Heal (Combat)-------------------------------------
+*-------------------------------------------------------
+
+
+heal:
+    bsr         clear_screen
+    
+    clr         D1
+    move.b      water_flask, D1
+    cmp         #0, D1
+    beq         no_water
+    
+    clr         D1
+    move.b      health, D1
+    cmp         #max_hp, D1
+    beq         full_health
+    
+    sub.b       #1, water_flask
+    move.b      #max_hp, health
+    lea         heal_msg, A1
+    move.b      #14, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    clr         D1
+    move.b      boss_battle, D1
+    cmp         #1, D1
+    beq         final_battle
+    
+    bne         combat
+
+
+*-------------------------------------------------------
+*---Full Health (Combat)--------------------------------
+*-------------------------------------------------------
+
+
+full_health:
+    bsr         clear_screen
+    lea         full_health_msg, A1
+    move.b      #14, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    clr         D1
+    move.b      boss_battle, D1
+    cmp         #1, D1
+    beq         final_battle
+    
+    bne         combat
+    
+    
+*-------------------------------------------------------
+*---No water Flasks (Combat)----------------------------
+*-------------------------------------------------------
+
+
+no_water:
+    bsr         clear_screen
+    lea         no_water_msg, A1
+    move.b      #14, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    clr         D1
+    move.b      boss_battle, D1
+    cmp         #1, D1
+    beq         final_battle
+    
+    bne         combat
+    
+    
+    
+*-------------------------------------------------------
+*---Combat (Final)--------------------------------------
+*-------------------------------------------------------
+
+
+final_battle:
+    ; display player's health in combat
+    bsr         clear_screen
+    lea         combat_hp_msg, A1
+    move.b      #14, D0
+    trap        #15
+
+    clr         D1
+    move.b      health, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    ; display thief's health in combat
+    lea         murderer_hp_msg, A1
+    move.b      #14, D0
+    trap        #15
+
+    clr         D1
+    move.b      murderer_hp, D1
+    move.b      #3, D0
+    trap        #15
+    bsr         endl
+    bsr         endl
+    
+    ; display combat actions
+    lea         final_battle_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      water_flask, D1
+    move.b      #3, D0
+    trap        #15
+    
+    clr         D1
+    move.b      #41, D1
+    move.b      #6, D0
+    trap        #15
+    
+    bsr         endl
+    bsr         endl
+    bsr         input
+    
+    cmp         #1, D1
+    beq         boss_attack
+    
+    cmp         #2, D1
+    beq         heal
+    bne         final_battle
+    
+    
+*-------------------------------------------------------
+*---Attack (final)-------------------------------------
+*-------------------------------------------------------
+
+
+boss_attack:
+    bsr         clear_screen
+    lea         attack_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    ; display the damage dealt to the enemy
+    clr         D1
+    move.b      damage, D1
+    move.b      #3, D0
+    trap        #15
+    
+    lea         dmg_msg, A1
+    move.b      #14, D0
+    trap        #15
+    sub.b       D1, murderer_hp
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    ; display the damage the enemy has dealt to the player
+    bsr         clear_screen
+    lea         enemy_attack_msg, A1
+    move.b      #14, D0
+    trap        #15
+    
+    clr         D1
+    move.b      murderer_dmg, D1
+    move.b      #3, D0
+    trap        #15
+    
+    lea         dmg_msg, A1
+    move.b      #14, D0
+    trap        #15
+    sub.b       D1, health
+    
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    ; check if enemy or player has been defeated
+    clr         D1
+    move.b      health, D1
+    cmp         #0, D1
+    beq         failure
+    
+    cmp         #max_hp, D1
+    bgt         failure
+
+    clr         D1
+    move.b      murderer_hp, D1
+    cmp         #0, D1
+    beq         game_won
+    
+    cmp         #murderer_max_hp, D1
+    bgt         game_won
+    
+    bne         final_battle
+    
+    
 *-------------------------------------------------------
 *---Game Play (Exploration)-----------------------------
 *-------------------------------------------------------
@@ -959,6 +1246,7 @@ pause:
     rts
     
 explore_start:
+    bsr     clear_screen
     lea     explore_start_msg, A1
     move.b  #14, D0
     trap    #15
@@ -983,7 +1271,6 @@ replay:
     trap    #15
 
     cmp     #exit,D1
-    beq     end         if SR Z register contains 1 beq => Branch Equals
     bsr     gameloop
 
 endl:
@@ -995,6 +1282,28 @@ endl:
     rts
     
     
+*-------------------------------------------------------
+*------------------------End-Game-----------------------
+*-------------------------------------------------------
+
+
+end_game:
+    bsr         clear_screen
+    lea         end_game_msg, A1
+    move.b      #14, D0
+    trap        #15
+    clr         D1
+    move.b      honour, D1
+    move.b      #3, D0
+    trap        #15
+    
+    bsr         endl
+    bsr         endl
+    bsr         pause
+    
+    simhalt
+
+
 *-------------------------------------------------------
 *-------------------Data Delarations--------------------
 *-------------------------------------------------------
@@ -1008,7 +1317,21 @@ welcome_msg:          dc.b    '*************************************************
                       dc.b    $0D,$0A
                       dc.b    '************************************************************'
                       dc.b    $0D,$0A,0
-
+prologue:			  dc.b	'You are a simple adventurer with only a copper shortsword at your'
+				      dc.b	$0D, $0A
+				      dc.b	'disposal.'
+				      dc.b	$0D, $0A
+				      dc.b	'you have lived quietly at a tiny village but, things have'
+				      dc.b	$0D, $0A
+				      dc.b	'turned for the worse recently.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'every night, people have started dissappearing.'
+				      dc.b	$0D, $0A
+				      dc.b	'you decided to investigate the cause of the dissappearences.'
+				      dc.b	$0D, $0A
+				      dc.b	$0D, $0A
+				      dc.b	'you start making your way to the village square.',0
 potion_msg:           dc.b    'Feed load (each horse needs at least 100 units of feed)'
                       dc.b    $0D,$0A
                       dc.b    'Enter feed load : ',0
@@ -1023,17 +1346,30 @@ village_msg:          dc.b    'you enter the village square.'
                       dc.b    $0D,$0A
                       dc.b    'What do you do?'
                       dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
                       dc.b    '1. Explore the lands'
                       dc.b    $0D,$0A,0
 return_msg:           dc.b    'you return to the village square.'
                       dc.b    $0D,$0A
                       dc.b    'What do you do?'
+                      dc.b    $0D,$0A
+				      dc.b    $0D,$0A
 				      dc.b    $0D,$0A
                       dc.b    '1. explore the lands'
+                      dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '2. Search for the murderer'
                       dc.b    $0D,$0A,0
 explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
+                      dc.b	  '*---------*'
+				      dc.b	  $0D, $0A
+				      dc.b	  '| Explore |'
+				      dc.b	  $0D, $0A
+				      dc.b	  '*---------*'
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
 travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
@@ -1103,9 +1439,19 @@ combat_msg:  	      dc.b	  $0D, $0A
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b   '2. Flee'
-                      dc.b    $0D,$0A,0
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '3. Heal (Water Flasks: ',0
+final_battle_msg:  	  dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+				      dc.b	  $0D, $0A
+                      dc.b    '1. Attack'
+                      dc.b    $0D,$0A
+                      dc.b    $0D,$0A
+                      dc.b    '2. Heal (Water Flasks: ',0
 combat_hp_msg:        dc.b   'Player: ',0
 thief_hp_msg:         dc.b   'Thief: ',0
+murderer_hp_msg:      dc.b   'Shrouded Figure: ',0
 attack_msg:           dc.b    'You attack your opponent!'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
@@ -1199,9 +1545,46 @@ search_msg:			  dc.b	'You begin searching for the murderer.'
 				      dc.b    $0D,$0A
 				      dc.b    $0D,$0A
 				      dc.b	'<== Combat Initiated! ==>',0
+heal_msg:			  dc.b	'<== Health fully Restored! ==>',0
+full_health_msg:	  dc.b	'Health is full!',0	
+no_water_msg:		  dc.b	'No water flasks in inventory!',0
+game_won_msg:		  dc.b	'*---------------------*'
+			          dc.b    $0D,$0A
+			          dc.b	'|  Congratulations!!  |'
+			          dc.b    $0D,$0A
+			          dc.b	'*---------------------*'
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b	'You have slain the murderer and retained peace in the village!'
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b  '<== Gained 5 Honour! ==>'
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b	'Although, you recognised the attire of the murderer.'
+			          dc.b    $0D,$0A
+			          dc.b	'It is part of an infamous cult, the fellowship of the moon.'
+			          dc.b    $0D,$0A
+			          dc.b	'You have decided to venture out into the world and find more clues'
+			          dc.b    $0D,$0A
+			          dc.b	'about this cult.',0
+
+end_game_msg:		  dc.b	'*-----------*'
+			          dc.b    $0D,$0A
+			          dc.b	'|  Results  |'
+			          dc.b    $0D,$0A
+			          dc.b	'*-----------*'
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b	'Honour: ',0		
 
 
 murder_quest:   ds.b    1
+boss_battle:    ds.b    1
 
 ; player stats
 health:         ds.b    1
@@ -1219,7 +1602,12 @@ honour:         ds.b    1
 thief_health:   ds.b    1
 thief_dmg:      ds.b    1
 
+; shrouded figure
+murderer_hp:    ds.b    1
+murderer_dmg:   ds.b    1 
+
     end start
+
 
 
 
