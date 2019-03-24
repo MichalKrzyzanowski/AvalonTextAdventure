@@ -110,11 +110,9 @@ input:
 gameplay:
     ; displays the village text with choices for the player
     bsr     clear_screen
-    bsr     decorate
-    lea     gameplay_msg, A1
+    lea     village_enter_msg, A1
     move.b  #14,D0
     trap    #15
-    bsr     decorate
     bsr     pause
     bsr     clear_screen
     lea     village_msg, A1
@@ -1104,10 +1102,6 @@ inventory:
 *-------------------------------------------------------
 
 
-decorate:
-    move.b  #60, D3
-    bsr     endl
-    
 clear_screen: 
     move.b  #11,D0      clear screen
     move.w  #$ff00,D1
@@ -1180,11 +1174,18 @@ prologue:			  dc.b	'You are a simple adventurer with only a copper shortsword at
 				      dc.b	$0D, $0A
 				      dc.b	'every night, people have started dissappearing.'
 				      dc.b	$0D, $0A
-				      dc.b	'you decided to investigate the cause of the dissappearences.'
+				      dc.b	'you decided to investigate the cause of the disappearances.'
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
 				      dc.b	'you start making your way to the village square.',0
-gameplay_msg:         dc.b    'Village',0
+village_enter_msg:	  dc.b	'*-----------*'
+			          dc.b    $0D,$0A
+			          dc.b	'|  Village  |'
+			          dc.b    $0D,$0A
+			          dc.b	'*-----------*'
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A
+			          dc.b    $0D,$0A,0
 village_msg:          dc.b    'you enter the village square.'
                       dc.b    $0D,$0A
                       dc.b    'What do you do?'
@@ -1442,6 +1443,7 @@ murderer_hp:    ds.b    1
 murderer_dmg:   ds.b    1 
 
     end start
+
 
 
 
