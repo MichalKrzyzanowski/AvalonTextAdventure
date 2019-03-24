@@ -47,9 +47,9 @@ start:
     
     move.b  #10, stamina  player's stamina, needed for exploring
 
-    move.b  #7, steps  steps taken, used for player movement
+    move.b  #0, steps  steps taken, used for player movement
     
-    move.b  #35, gold  player's gold, used to buy water or upgrade weapon
+    move.b  #0, gold  player's gold, used to buy water or upgrade weapon
     
     move.b  #4, damage  damage of player's weapon
     
@@ -71,8 +71,7 @@ start:
     move.b  #4, murderer_dmg
 
 
-    bsr welcome    branch to the welcome subroutine
-    ;bsr explore
+    bsr welcome     branch to the welcome subroutine
     
 *Game loop
     org     $3000      the rest of the program is to be located from 3000 onwards
@@ -514,6 +513,22 @@ shop:
     lea     shop_msg, A1
     move.b  #14, D0
     trap    #15
+    
+    lea     gold_msg, A1
+    move.b  #14, D0
+    trap    #15
+    
+    clr     D1
+    move.b  gold, D1
+    move.b  #3, D0
+    trap    #15
+    
+    clr     D1
+    move.b  #103, D1
+    move.b  #6, D0
+    trap    #15
+    bsr     endl
+    bsr     endl
     
     bsr     input
     
@@ -1607,6 +1622,7 @@ murderer_hp:    ds.b    1
 murderer_dmg:   ds.b    1 
 
     end start
+
 
 
 
