@@ -7,24 +7,13 @@
 * Description: text-based adventure game, goal is to explore the world and complete
 * encouters such as battles and treasures
 *-------------------------------------------------------
-*Choose to be a Worker or a God 
-*https://www.avalon-rpg.com/
-*-------------------------------------------------------
 
 *-------------------------------------------------------
 *Validation values to be used, modify as needed
 *Add additional validation values as required-------
 *------------------------------------------------
 
-
-exit                EQU 0      used to exit assembly program
-min_feed            EQU 100    min feed requirement
-min_potions         EQU 1      min number of potions
-max_potions         EQU 9      max number of potions
-min_weapons         EQU 6      min weapons
-win_point           EQU 5      points accumilated on win
-lose_point          EQU 8      points deducted on a loss
-
+; constants
 max_hp              EQU 10     max hp of player
 thief_max_hp        EQU 10     max hp of thief enemy
 murderer_max_hp     EQU 20     max hp of murderer
@@ -78,18 +67,6 @@ start:
 
 
 *-------------------------------------------------------
-*-------------------Game Subroutine---------------------
-*-------------------------------------------------------
-
-
-game:
-    bsr     gameloop   branch to gameloop subroutine
-    rts                return from game: subroutine
-          
-
-
-
-*-------------------------------------------------------
 *-------------------Welcome Subroutine------------------
 *-------------------------------------------------------
 
@@ -103,7 +80,8 @@ welcome:
     bsr     endl
     bsr     pause
     
-    bsr     clear_screen
+    ; clear the screen and display the prologue text
+    bsr     clear_screen    
     lea     prologue, A1
     move.b  #14, D0
     trap    #15
@@ -112,7 +90,6 @@ welcome:
     bsr     pause
     bsr     gameplay
     
-
 
 *-------------------------------------------------------
 *---------Gameplay Input Values Subroutine--------------
@@ -123,116 +100,15 @@ input:
     move.b  #4, D0
     trap    #15
     rts
-   
-    
-*-------------------------------------------------------
-*----------------Gameloop (main loop)-------------------
-*------------------------------------------------------- 
-
-
-gameloop:
-    bsr     update          branch to update game subroutine 
-    bsr     clear_screen    clears the screen         
-    bsr     draw            branch to draw screen subroutine
-    bsr     clear_screen    clears the screen
-    bsr     gameplay        branch to gameplay subroutine
-    bsr     clear_screen    clears the screen
-    bsr     hud             branch to display HUD subroutine
-    bsr     clear_screen    clears the screen
-    bsr     replay          branch to replay game subroutine
-    bsr     clear_screen    clears the screen
-    rts                     return from gameloop: subroutine
 
 
 *-------------------------------------------------------
-*----------------Update Quest Progress------------------
-*  Complete Quest
-*------------------------------------------------------- 
-
-
-update:
-    bsr     endl            print a CR and LF
-    bsr     decorate        decorate with dots using a loop
-    lea     update_msg,A1   
-    move.b  #14,D0
-    trap    #15
-    bsr     decorate
-    rts
-    
-    
-*-------------------------------------------------------
-*-----------------Draw Quest Updates--------------------
-* Draw the game progress information, status regarding
-* quest
-*------------------------------------------------------- 
-
-
-draw:
-    bsr     endl
-    bsr     decorate
-    lea     draw_msg,A1
-    move.b  #14,D0
-    trap    #15
-    bsr     decorate
-    rts
-    
-    
-*-------------------------------------------------------
-*------------------------Potions------------------------
-* Input the ingredients for each potion. Ingredients costs 
-* money. For an advanced mark you need to manage this 
-* resource
-*------------------------------------------------------- 
-
-
-feed:
-    bsr     endl
-    bsr     decorate
-    lea     potion_msg,A1
-    move.b  #14,D0
-    trap    #15
-    bsr     decorate
-    rts
-
-
-*-------------------------------------------------------
-*--------------------Potions Inventory---------------------
-* Number of potions to be used in a Quest 
-*-------------------------------------------------------
-
- 
-potions:
-    bsr     endl
-    bsr     decorate
-    lea     potions_msg,A1
-    move.b  #14,D0
-    trap    #15
-    bsr     decorate
-    rts
-
-
-*-------------------------------------------------------
-*-------------------------Weapons-----------------------
-* Number of weapons
-*------------------------------------------------------- 
-
-  
-weapons:
-    bsr     endl
-    bsr     decorate
-    lea     weapons_msg,A1
-    move.b  #14,D0
-    trap    #15
-    bsr     decorate
-    rts
-
-
-*-------------------------------------------------------
-*---Game Play (Quest Progress)--------------------------
+*---Village gameplay start point------------------------
 *------------------------------------------------------- 
 
 
 gameplay:
+    ; displays the village text with choices for the player
     bsr     clear_screen
     bsr     decorate
     lea     gameplay_msg, A1
@@ -253,11 +129,12 @@ gameplay:
 
 
 *-------------------------------------------------------
-*---Game Play (Exploration)-----------------------------
+*---exploration-------------------------------------------
 *-------------------------------------------------------
 
 
 explore:
+    ; displays explore text and presents the player with multiple options
     bsr     clear_screen
     lea     travel_msg, A1
     move.b  #14, D0
@@ -265,19 +142,24 @@ explore:
     
     bsr     input
     
+    ; restore stamina
     cmp     #2, D1
     beq     camp
     
+    ; check player status
     cmp     #3, D1
     beq     status
     
+    ; return to village, only if a certain condition is met
     cmp     #4, D1
     beq     return
     
+    ; prevents player from exploring if out of stamina
     move.b  stamina, D2
     cmp     #0, D2
     beq     stamina_lack
     
+    ; move
     cmp     #1, D1
     beq     movement
     
@@ -286,11 +168,12 @@ explore:
 
 
 *-------------------------------------------------------
-*---Game Play (Exploration)-----------------------------
+*---player status screen-----------------------------
 *-------------------------------------------------------
 
 
 status:
+    ; status of player, can check inventory or stats
     bsr     clear_screen
     lea     status_msg, A1
     move.b  #14, D0
@@ -311,11 +194,12 @@ status:
     
 
 *-------------------------------------------------------
-*---Game Play (Exploration)-----------------------------
+*---no stamina to explore-----------------------------
 *-------------------------------------------------------
 
 
 stamina_lack:
+    ; tells the player that he is out of stamina and cannot move
     bsr     clear_screen
     lea     stamina_lack_msg, A1
     move.b  #14, D0
@@ -328,11 +212,12 @@ stamina_lack:
     
 
 *-------------------------------------------------------
-*---Game Play (Exploration)-----------------------------
+*---setup camp, restore stamina fully-----------------------------
 *-------------------------------------------------------
 
 
 camp:
+    ; restores stamina fully
     bsr     clear_screen
     lea     camp_msg, A1
     move.b  #14, D0
@@ -345,11 +230,12 @@ camp:
 
 
 *-------------------------------------------------------
-*---Game Play (Exploration)-----------------------------
+*---movement-----------------------------
 *-------------------------------------------------------
 
 
 movement:
+    ; movement of the player, - 1 stamina, + 1 step(progress)
     bsr     clear_screen
     add.b   #1, steps
     sub.b   #1, stamina
@@ -362,6 +248,7 @@ movement:
     bsr     pause
     bsr     clear_screen
     
+    ; check for different events
     clr     D1
     move.b  steps, D1
     cmp     #treasure, D1
@@ -380,11 +267,12 @@ movement:
      
     
 *-------------------------------------------------------
-*---Treasure Event (Exploration)------------------------
+*---return to village state------------------------
 *------------------------------------------------------- 
 
 
 return:
+    ; return back to the village, steps are reset
     bsr     clear_screen
     clr     D1
     move.b  murder_quest, D1
@@ -399,9 +287,11 @@ return:
     bsr     endl
     bsr     input
     
+    ; return to exploration
     cmp     #1, D1
     beq     explore_start
     
+    ; final boss
     cmp     #2, D1
     beq     search
     
@@ -409,11 +299,12 @@ return:
     
     
 *-------------------------------------------------------
-*---Treasure Event (Exploration)------------------------
+*---cannot return to village------------------------
 *-------------------------------------------------------
 
 
 cannot_return:
+    ; cannot return due to a certain condition being not met
     bsr     clear_screen
     lea     cannot_return_msg, A1
     move.b  #14, D0
@@ -430,6 +321,7 @@ cannot_return:
 
 
 search:
+    ; final boss engage text
     bsr     clear_screen
     lea     search_msg, A1
     move.b  #14, D0
@@ -442,11 +334,12 @@ search:
 
 
 *-------------------------------------------------------
-*---Treasure Event (Exploration)------------------------
+*---Treasure Event------------------------
 *-------------------------------------------------------
 
 
 event_treasure:
+    ; treasure event encountered, gold find
     bsr     clear_screen
     lea     treasure_msg, A1
     move.b  #14, D0
@@ -460,11 +353,12 @@ event_treasure:
 
 
 *-------------------------------------------------------
-*---Thief Encounter Event (Exploration)-----------------
+*---Thief Encounter Event-----------------
 *-------------------------------------------------------
 
 
 thief_encounter:
+    ; battle against weak enemy
     bsr     clear_screen
     lea     thief_msg, A1
     move.b  #14, D0
@@ -477,11 +371,12 @@ thief_encounter:
 
 
 *-------------------------------------------------------
-*---Thief Encounter Event (Exploration)-----------------
+*---peddlar(shop) Encounter Event-----------------
 *-------------------------------------------------------
 
 
 peddlar_encounter:
+    ; player meets a peddlar, can use shop or progress in the murderer quest
     bsr     clear_screen
     lea     peddlar_enct_msg, A1
     move.b  #14, D0
@@ -505,11 +400,12 @@ peddlar_encounter:
     
     
 *-------------------------------------------------------
-*---Combat (Exploration)-----------------------------
+*---shop, buy water or upgrade weapon-----------------------------
 *-------------------------------------------------------
 
     
 shop:
+    ; buy water flasks, upgrade weapon
     bsr     clear_screen
     lea     shop_msg, A1
     move.b  #14, D0
@@ -552,6 +448,7 @@ shop:
 
 
 buy_water:
+    ; checks if you have enough gold to buy water flask
     bsr     clear_screen 
     clr     D1
     move.b  gold, D1
@@ -577,6 +474,7 @@ buy_water:
 
 
 no_gold:
+    ; not enough gold to buy
     bsr     clear_screen
     lea     no_gold_msg, A1
     move.b  #14, D0
@@ -594,6 +492,7 @@ no_gold:
 
 
 upgrade_weapon:
+    ; upgrade weapon damage by 2 if player has enough gold
     bsr     clear_screen
     clr     D1
     move.b  gold, D1
@@ -617,6 +516,7 @@ upgrade_weapon:
 *-------------------------------------------------------
   
 murderer_quest:
+    ; gain info on murderer quest, appears only once
     bsr     clear_screen
     
     clr     D1
@@ -640,6 +540,7 @@ murderer_quest:
 
 
 quest_active:
+    ; if asking the peddlar for rumours a second time
     lea     quest_active_msg, A1
     move.b  #14, D0
     trap    #15
@@ -716,6 +617,7 @@ combat:
 
 
 attack:
+    ; player deals damage but also takes damage
     bsr         clear_screen
     lea         attack_msg, A1
     move.b      #14, D0
@@ -781,6 +683,7 @@ attack:
 
 
 victory:
+    ; gain rewards upon beating your enemy
     bsr         clear_screen
     lea         victory_msg, A1
     move.b      #14, D0
@@ -804,6 +707,7 @@ victory:
 
 
 game_won:
+    ; final boss defeated
     bsr         clear_screen
     lea         game_won_msg, A1
     move.b      #14, D0
@@ -821,6 +725,7 @@ game_won:
 
 
 failure:
+    ; player hp dropped down to 0
     bsr         clear_screen
     lea         failure_msg, A1
     move.b      #14, D0
@@ -838,6 +743,7 @@ failure:
 
 
 flee:
+    ; escape from combat, lose honour, cannot flee from final boss
     bsr         clear_screen
     lea         flee_msg, A1
     move.b      #14, D0
@@ -863,6 +769,7 @@ flee:
 
 
 heal:
+    ; restore helath fully, use up 1 water flask
     bsr         clear_screen
     
     clr         D1
@@ -898,6 +805,7 @@ heal:
 
 
 full_health:
+    ; triggered when hp is full, prevents water flask wastage
     bsr         clear_screen
     lea         full_health_msg, A1
     move.b      #14, D0
@@ -920,6 +828,7 @@ full_health:
 
 
 no_water:
+    ; prevents player from healing if no water flasks in inventory
     bsr         clear_screen
     lea         no_water_msg, A1
     move.b      #14, D0
@@ -956,7 +865,7 @@ final_battle:
     bsr         endl
     bsr         endl
     
-    ; display thief's health in combat
+    ; display shrouded figure's health in combat
     lea         murderer_hp_msg, A1
     move.b      #14, D0
     trap        #15
@@ -1001,6 +910,7 @@ final_battle:
 
 
 boss_attack:
+    ; same as normal combat but, no flee option, winning leads to game win screen
     bsr         clear_screen
     lea         attack_msg, A1
     move.b      #14, D0
@@ -1173,95 +1083,12 @@ inventory:
     
     
 *-------------------------------------------------------
-*-----------------Heads Up Display (Munny)--------------
-* Retrieves the score from memory location
-*-------------------------------------------------------  
-
- 
-hud:
-
-    bsr     endl
-    bsr     decorate
-    lea     hud_msg,A1
-    move.b  #14,D0
-    trap    #15
-    move.b  (A3),D1     retrieve the value A3 point to and move to D1
-    move.b  #3,D0       move literal 3 to D0
-    trap    #15         intrepret value in D0, which 3 which displays D1
-    bsr     decorate
-    rts
-
-
-*-------------------------------------------------------
-*-----------------------Being Attacked------------------
-* This could be used for collision detection
+*------------------Start Exploring--------------------
 *-------------------------------------------------------
 
 
-
-collision_hit:
-    *hit
-    lea     hit_msg,A1
-    move    #14,D0
-    trap    #15
-    rts
-    
-collision_miss:
-    *miss
-    lea     miss_msg,A1
-    move    #14,D0
-    trap    #15
-    rts
-
-
-*-------------------------------------------------------
-*--------------------------Loop-------------------------
-*-------------------------------------------------------
-
-
-loop:
-    move.b  #5, D3 loop counter D3=5
-next:
-    lea     loop_msg,A1
-    move.b  #14,D0
-    trap    #15
-	sub     #1,D3   decrement loop counter
-    bne     next    repeat until D0=0
-
-
-*-------------------------------------------------------
-*------------------Screen Decoration--------------------
-*-------------------------------------------------------
-
-
-decorate:
-    move.b  #60, D3
-    bsr     endl
-out:
-    lea     loop_msg,A1
-    move.b  #14,D0
-    trap    #15
-	sub     #1,D3   decrement loop counter
-    bne     out	    repeat until D0=0
-    bsr     endl
-    rts
-    
-clear_screen: 
-    move.b  #11,D0      clear screen
-    move.w  #$ff00,D1
-    trap    #15
-    rts
-    
-pause:
-    lea     pause_msg, A1
-    move.b  #14, D0
-    trap    #15
-    
-    move.b  #4, D0
-    trap    #15
-    rts
-    
-explore_start:
+    explore_start:
+    ; message informing player that exploration has begun
     bsr     clear_screen
     lea     explore_start_msg, A1
     move.b  #14, D0
@@ -1273,21 +1100,29 @@ explore_start:
     
     
 *-------------------------------------------------------
-*------------------------Replay-------------------------
+*------------------Screen Decoration--------------------
 *-------------------------------------------------------
 
 
-replay:
+decorate:
+    move.b  #60, D3
     bsr     endl
-    lea     replay_msg,A1
-    move.b  #14,D0
+    
+clear_screen: 
+    move.b  #11,D0      clear screen
+    move.w  #$ff00,D1
+    trap    #15
+    rts
+    
+; pause the game, await any input, prefferably enter for fast gameplay
+pause:
+    lea     pause_msg, A1
+    move.b  #14, D0
     trap    #15
     
-    move.b  #4,D0
+    move.b  #4, D0
     trap    #15
-
-    cmp     #exit,D1
-    bsr     gameloop
+    rts
 
 endl:
     movem.l D0/A1,-(A7)
@@ -1304,6 +1139,7 @@ endl:
 
 
 end_game:
+    ; after losing or winning, display final honour the player has gained over the course of the game
     bsr         clear_screen
     lea         end_game_msg, A1
     move.b      #14, D0
@@ -1348,15 +1184,6 @@ prologue:			  dc.b	'You are a simple adventurer with only a copper shortsword at
 				      dc.b	$0D, $0A
 				      dc.b	$0D, $0A
 				      dc.b	'you start making your way to the village square.',0
-potion_msg:           dc.b    'Feed load (each horse needs at least 100 units of feed)'
-                      dc.b    $0D,$0A
-                      dc.b    'Enter feed load : ',0
-potions_msg:          dc.b    'Number of potions : ',0
-weapons_msg:          dc.b    'Each quest need at least 2 Weapons'
-                      dc.b    $0D,$0A
-                      dc.b    'minimum requirement is 2 i.e. Sword x 1 and Speer x 1.'
-                      dc.b    $0D,$0A
-                      dc.b    'Enter # of weapons : ',0
 gameplay_msg:         dc.b    'Village',0
 village_msg:          dc.b    'you enter the village square.'
                       dc.b    $0D,$0A
@@ -1418,13 +1245,6 @@ status_msg:           dc.b	  '*--------*'
 move_msg:             dc.b    'you walk for 1 minute!'
                       dc.b    $0D,$0A
                       dc.b    '<== stamina decreased by 1! ==>',0
-update_msg:           dc.b    'Update Gameplay !',0
-draw_msg:             dc.b    'Draw Screen !',0
-hit_msg:              dc.b    'Strike!',0
-miss_msg:             dc.b    'Miss!',0
-loop_msg:             dc.b    '.',0
-replay_msg:           dc.b    'Enter 0 to Quit any other number to replay : ',0
-hud_msg:              dc.b    'Score : ',0
 pause_msg:            dc.b    'Press Enter to continue...',0
 health_msg:           dc.b    'Health: ',0
 stamina_msg:          dc.b    'Stamina: ',0
@@ -1587,7 +1407,6 @@ game_won_msg:		  dc.b	'*---------------------*'
 			          dc.b	'You have decided to venture out into the world and find more clues'
 			          dc.b    $0D,$0A
 			          dc.b	'about this cult.',0
-
 end_game_msg:		  dc.b	'*-----------*'
 			          dc.b    $0D,$0A
 			          dc.b	'|  Results  |'
@@ -1598,7 +1417,7 @@ end_game_msg:		  dc.b	'*-----------*'
 			          dc.b    $0D,$0A
 			          dc.b	'Honour: ',0		
 
-
+; booleans
 murder_quest:   ds.b    1
 boss_battle:    ds.b    1
 
@@ -1623,6 +1442,7 @@ murderer_hp:    ds.b    1
 murderer_dmg:   ds.b    1 
 
     end start
+
 
 
 
