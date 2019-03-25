@@ -1206,7 +1206,7 @@ return_msg:           dc.b    'you return to the village square.'
                       dc.b    '2. Search for the murderer'
                       dc.b    $0D,$0A,0
 explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
-                      dc.b	  '*---------*'
+travel_msg:           dc.b	  '*---------*'
 				      dc.b	  $0D, $0A
 				      dc.b	  '| Explore |'
 				      dc.b	  $0D, $0A
@@ -1214,7 +1214,7 @@ explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
 				      dc.b	  $0D, $0A
 				      dc.b	  $0D, $0A
 				      dc.b	  $0D, $0A
-travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
+                      dc.b    '1. Travel(1 step, -1 stamina)'
                       dc.b    $0D,$0A
                       dc.b    $0D,$0A
                       dc.b    '2. Setup camp(restore stamina)'
@@ -1443,6 +1443,7 @@ murderer_hp:    ds.b    1
 murderer_dmg:   ds.b    1 
 
     end start
+
 
 
 
