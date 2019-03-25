@@ -1,6 +1,6 @@
 00001000 Starting Address
 Assembler used: EASy68K Editor/Assembler v5.16.01
-Created On: 2019-03-25 08:52:51
+Created On: 2019-03-25 14:33:05
 
 00001000                             1      org $1000
 00001000                             2  *-------------------------------------------------------
@@ -138,7 +138,7 @@ Created On: 2019-03-25 08:52:51
 00003078                           134  explore:
 00003078                           135      ; displays explore text and presents the player with multiple options
 00003078  6100 0898                136      bsr     clear_screen
-0000307C  43F9 00003C97            137      lea     travel_msg, A1
+0000307C  43F9 00003C6C            137      lea     travel_msg, A1
 00003082  103C 000E                138      move.b  #14, D0
 00003086  4E4F                     139      trap    #15
 00003088                           140      
@@ -1210,7 +1210,7 @@ Created On: 2019-03-25 08:52:51
 00003C23= 32 2E 20 53 65 61 ...   1206                        dc.b    '2. Search for the murderer'
 00003C3D= 0D 0A 00                1207                        dc.b    $0D,$0A,0
 00003C40= 59 6F 75 20 6C 65 ...   1208  explore_start_msg:    dc.b    'You leave the village to explore the lands!',0
-00003C6C= 2A 2D 2D 2D 2D 2D ...   1209                        dc.b    '*---------*'
+00003C6C= 2A 2D 2D 2D 2D 2D ...   1209  travel_msg:           dc.b    '*---------*'
 00003C77= 0D 0A                   1210                        dc.b    $0D, $0A
 00003C79= 7C 20 45 78 70 6C ...   1211                        dc.b    '| Explore |'
 00003C84= 0D 0A                   1212                        dc.b    $0D, $0A
@@ -1218,7 +1218,7 @@ Created On: 2019-03-25 08:52:51
 00003C91= 0D 0A                   1214                        dc.b    $0D, $0A
 00003C93= 0D 0A                   1215                        dc.b    $0D, $0A
 00003C95= 0D 0A                   1216                        dc.b    $0D, $0A
-00003C97= 31 2E 20 54 72 61 ...   1217  travel_msg:           dc.b    '1. Travel(1 step, -1 stamina)'
+00003C97= 31 2E 20 54 72 61 ...   1217                        dc.b    '1. Travel(1 step, -1 stamina)'
 00003CB4= 0D 0A                   1218                        dc.b    $0D,$0A
 00003CB6= 0D 0A                   1219                        dc.b    $0D,$0A
 00003CB8= 32 2E 20 53 65 74 ...   1220                        dc.b    '2. Setup camp(restore stamina)'
@@ -1546,7 +1546,7 @@ THIEF_HEALTH        4731
 THIEF_HP_MSG        3FDC
 THIEF_MAX_HP        A
 THIEF_MSG           3F18
-TRAVEL_MSG          3C97
+TRAVEL_MSG          3C6C
 TREASURE            2
 TREASURE_MSG        3E1E
 UPGRADE_GAINED_MSG  43A2
